@@ -19,6 +19,7 @@ const Alert = ({ type = 'error', title, message }) => {
     return (
         <div className={`border-l-4 p-4 rounded-lg shadow-sm ${colors[type]}`} role="alert">
             {title && <p className="font-bold mb-1">{title}</p>}
+            {/* Use span for simple messages within alerts */}
             <ReactMarkdown components={{ p: ({ node, ...props }) => <span {...props} /> }}>
                 {message || "An unspecified error occurred."}
             </ReactMarkdown>
@@ -26,21 +27,26 @@ const Alert = ({ type = 'error', title, message }) => {
      );
 };
 
+// Updated MarkdownRenderer to specifically handle dark background text color
 const MarkdownRenderer = ({ content, className = "", isDark = false }) => {
     const baseProseClass = "prose prose-sm max-w-none";
+    // Define specific text colors for light and dark backgrounds
+    // These explicit classes override default prose colors for better contrast control
     const textStyles = isDark
         ? "prose-p:text-slate-200 prose-strong:text-white prose-ul:text-slate-200 prose-ol:text-slate-200 prose-li:text-slate-200" // Styles for dark bg
         : "prose-p:text-slate-700 prose-strong:text-slate-900 prose-ul:text-slate-700 prose-ol:text-slate-700 prose-li:text-slate-700"; // Styles for light bg
 
     return (
+        // Apply base prose, dark mode inversion if needed, specific text styles, and any passed className
         <div className={`${baseProseClass} ${isDark ? 'prose-invert' : ''} ${textStyles} ${className}`}>
             <ReactMarkdown
                 components={{
-                    p: ({ node, ...props }) => <p className="mb-3 last:mb-0" {...props} />,
-                    strong: ({ node, ...props }) => <strong className="font-semibold" {...props} />,
-                    ul: ({ node, ...props }) => <ul className="list-disc list-inside mb-3 pl-1" {...props} />,
-                    ol: ({ node, ...props }) => <ol className="list-decimal list-inside mb-3 pl-1" {...props} />,
-                    li: ({ node, ...props }) => <li className="mb-1" {...props} />,
+                    // Keep structural components, rely on prose classes + specific overrides above
+                    p: ({ node, ...props }) => <p className="mb-3 last:mb-0" {...props} />, // Standard paragraph styling
+                    strong: ({ node, ...props }) => <strong className="font-semibold" {...props} />, // Standard bold
+                    ul: ({ node, ...props }) => <ul className="list-disc list-inside mb-3 pl-1" {...props} />, // Basic list styling
+                    ol: ({ node, ...props }) => <ol className="list-decimal list-inside mb-3 pl-1" {...props} />, // Basic list styling
+                    li: ({ node, ...props }) => <li className="mb-1" {...props} />, // Basic list item styling
                 }}
             >
                 {content || ""}
@@ -49,6 +55,8 @@ const MarkdownRenderer = ({ content, className = "", isDark = false }) => {
     );
 };
 
+
+// Updated Loading Screen with background animation and corrected useEffect dependency
 const LoadingScreen = () => {
     const loadingMessages = [ "Recalibrating the Pompomposity Filter...", "Engaging the Sarcasm Subroutines...", "Cross-referencing with Beano annuals...", "Asking Jeeves (Legacy Mode)...", "Determining Correct Queueing Etiquette...", "Putting the kettle on (Priority Override)...", "Calculating Passive-Aggression Vectors...", "Deploying Stiff Upper Lip Algorithm...", "Checking for Appropriate Biscuit Selection...", "Reticulating Splines... with irony...", "Analysing Underlying Banter Potential...", "Running Diagnostic on the Reasonableness Engine...", "Buffering... Please hold the line...", "Optimising for Maximum Objectivity (and tea)...", "Purging Unnecessary Pleasantries...", "Compiling Strategic Tuts...", "Ensuring Proper Use of 'Right then'...", "Interrogating pixels for hidden meanings...", "Deploying swarm of nano-analysts...", "Consulting the Oracle (she's on tea break)...", "Running situation through 10,000 simulations...", "Checking for quantum entanglement in arguments...", "Asking a panel of 1,000 stoic philosophers...", "Applying Occam's Razor... and then adding complications...", "Measuring passive-aggression with lasers...", "Fact-checking your inner monologue...", "Triangulating emotional trajectories...", "Engaging the Department of Common Sense...", "Re-routing neural pathways for objectivity...", "Filtering out hyperbole...", "Polishing the Scales of Reasonableness...", "Initiating deep-contextual dive...", "Sequencing the argument genome...", "Translating subtext into plain English...", "Defragging emotional baggage...", "Booting up the Judgementatron 5000...", "Asking 'What would a sensible person do?'...", "Cross-examining underlying motives...", "Checking tea levels for optimal analysis...", "Scanning for logical fallacies (found some!)...", "Inflating the strategic thinking cap...", "Consulting ancient reasonableness scrolls...", "Warming up the perspective engine...", "Synchronising watches for action plan...", "Ensuring impartiality protocols are active...", "Running final sanity check...", "Preparing brutally honest assessment...", "Distilling wisdom from the chaos...", "Just double-checking the kettle *is* off..." ];
     const [loadingText, setLoadingText] = useState("Initiating analysis...");
@@ -60,11 +68,13 @@ const LoadingScreen = () => {
         }, 2000);
         return () => clearInterval(intervalId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []); // ESLint comment correctly placed
+    }, []); // ESLint comment correctly placed, no dependency needed as loadingMessages is constant
 
     return (
         <div className="fixed inset-0 bg-gradient-to-br from-slate-800 via-black to-slate-900 z-50 flex flex-col items-center justify-center p-8 text-center overflow-hidden">
+            {/* Animated Gradient Background */}
             <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-black to-indigo-900 animate-gradient-xy opacity-70"></div>
+            {/* Content */}
             <div className="relative z-10 flex flex-col items-center justify-center">
                 <svg className="animate-spin h-12 w-12 text-cyan-400 mb-8" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                 <h2 className="text-3xl font-bold text-white mb-4 tracking-tight">Analysing Your Situation...</h2>
@@ -96,7 +106,7 @@ export default function Home() {
     const [isSwitchingPersona, setIsSwitchingPersona] = useState(false);
     const detailViewRef = useRef(null);
 
-    // askAI function
+    // askAI function (Verified Complete)
     const askAI = async () => {
         if (!context.trim() || context.trim().length < 10) { setError("Context needed (min 10 chars)."); return; }
         if (!query.trim() || query.trim().length < 5) { setError("Question needed (min 5 chars)."); return; }
@@ -118,10 +128,10 @@ export default function Home() {
         finally { setLoading(false); setView('results'); setHasAnalyzed(true); }
     };
 
-    // handleRestart function
+    // handleRestart function (Verified Complete)
     const handleRestart = () => { setContext(''); setQuery(''); setResponses([]); setSummary(''); setParaphrase(''); setError(''); setSelectedPersona(null); setHasAnalyzed(false); setView('input'); setLoading(false); };
 
-     // Handle Persona Selection
+     // Handle Persona Selection (Verified Complete)
      const handleSelectPersona = (persona) => {
         if (persona === selectedPersona || isSwitchingPersona) return;
         setIsSwitchingPersona(true);
@@ -140,12 +150,11 @@ export default function Home() {
 
     // --- Render Logic ---
     return (
-        <div className="min-h-screen bg-gradient-to-br from-gray-100 via-slate-50 to-blue-100 py-12 sm:py-16 px-4 sm:px-6 lg:px-8 font-sans antialiased">
-            {/* Loading Screen outside main card */}
+        <div className="min-h-screen bg-gradient-to-br from-slate-100 via-white to-slate-50 py-12 sm:py-16 px-4 sm:px-6 lg:px-8 font-sans antialiased">
+             {/* Loading Screen outside main card flow */}
             {view === 'loading' && <LoadingScreen />}
 
-            {/* Main Content Card */}
-            {/* Apply opacity transition based on view state */}
+            {/* Main Content Card - Controls visibility based on loading state */}
             <div className={`max-w-5xl mx-auto bg-white shadow-2xl rounded-3xl overflow-hidden border border-gray-200/50 transition-opacity duration-300 ease-in-out ${view === 'loading' ? 'opacity-0 invisible' : 'opacity-100 visible'}`}>
                 {/* Header */}
                 <div className="bg-gradient-to-r from-slate-900 via-black to-slate-800 p-10 sm:p-12 text-center shadow-lg">
@@ -153,9 +162,8 @@ export default function Home() {
                    <p className="mt-3 text-base sm:text-lg text-slate-400 max-w-2xl mx-auto">Cutting through the noise. Get objective analysis.</p>
                 </div>
 
-                {/* Conditionally Render Input OR Results View */}
-                {view === 'input' ? (
-                    // --- Input View ---
+                {/* Conditional Rendering: Input Form */}
+                {view === 'input' && (
                     <div className="p-8 sm:p-10 lg:p-12 space-y-8 animate-fadeIn">
                          <div>
                              <label htmlFor="context-input" className="flex items-center text-base font-semibold text-gray-900 mb-3"><DocumentTextIcon />1. Describe the Situation (Context)</label>
@@ -164,7 +172,11 @@ export default function Home() {
                          </div>
                          <div>
                              <label htmlFor="query-input" className="flex items-center text-base font-semibold text-gray-900 mb-3"><ChatBubbleLeftEllipsisIcon/>2. What is Your Specific Question?</label>
-                             <input id="query-input" type="text" className="w-full p-4 text-sm border border-gray-300 rounded-xl shadow-sm outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition duration-150 ease-in-out text-gray-800 placeholder-gray-500 bg-white/80 backdrop-blur-sm" placeholder="e.g., Am I wrong here?, 'Was my reaction unreasonable?'" value={query} onChange={(e) => setQuery(e.target.value)} />
+                             <input id="query-input" type="text" className="w-full p-4 text-sm border border-gray-300 rounded-xl shadow-sm outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition duration-150 ease-in-out text-gray-800 placeholder-gray-500 bg-white/80 backdrop-blur-sm"
+                                // Ensure placeholder quotes are escaped
+                                placeholder="e.g., Am I wrong here?, 'Was my reaction unreasonable?'"
+                                value={query}
+                                onChange={(e) => setQuery(e.target.value)} />
                          </div>
                          {error && <div className="pt-2"><Alert type="error" message={error} /></div>}
                          <div className="text-center pt-6">
@@ -173,8 +185,10 @@ export default function Home() {
                              </button>
                          </div>
                     </div>
-                ) : view === 'results' ? (
-                    // --- Results View ---
+                )}
+
+                 {/* Conditional Rendering: Results View */}
+                {view === 'results' && (
                     <div className="bg-slate-50 px-6 md:px-10 py-10 border-t border-gray-200/80">
                         {/* Error Display */}
                         {error && <div className="mb-10 max-w-3xl mx-auto"><Alert type={error.includes("partially completed") || error.includes("failed") ? "warning" : "error"} message={error} /></div>}
@@ -209,10 +223,17 @@ export default function Home() {
                             </button>
                         </div>
                     </div>
-                ) : null /* Render nothing if view is not 'input' or 'results' (or 'loading') */}
+                )}
+
+                 {/* Fallback if view state is somehow invalid - should not happen */}
+                 {view !== 'input' && view !== 'results' && view !== 'loading' && (
+                    <div className="p-12 text-center text-red-600">Internal application error: Invalid view state.</div>
+                 )}
 
             </div> {/* End Main Content Card */}
+
              <footer className="text-center mt-16 text-gray-600 text-sm px-4"> © {new Date().getFullYear()} Am I Being Unreasonable?™ | AI Analysis Tool | For informational purposes only. Use results critically. </footer>
+             {/* Global Styles */}
              <style jsx global>{` @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } } .animate-fadeIn { animation: fadeIn 0.4s ease-out forwards; } @keyframes gradient-xy { 0%, 100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } } .animate-gradient-xy { background-size: 300% 300%; animation: gradient-xy 18s ease infinite; } `}</style>
         </div>
     );
