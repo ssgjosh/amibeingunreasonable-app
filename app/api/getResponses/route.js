@@ -58,7 +58,7 @@ export async function POST(request) {
     if (!context || typeof context !== 'string' || context.trim().length < 10) { return Response.json({ error: "Context description required (min 10 chars)." }, { status: 400 }); }
     if (!query || typeof query !== 'string' || query.trim().length < 5) { return Response.json({ error: "Specific query/worry required (min 5 chars)." }, { status: 400 }); }
 
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro-latest" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-pro-preview-03-25" });
     const generationConfig = { temperature: 0.6 };
 
     // --- Generate Paraphrase ---
