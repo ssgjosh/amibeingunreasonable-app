@@ -173,7 +173,7 @@ export default function Home() {
                          <div>
                              <label htmlFor="query-input" className="flex items-center text-base font-semibold text-gray-900 mb-3"><ChatBubbleLeftEllipsisIcon/>2. What is Your Specific Question?</label>
                              <input id="query-input" type="text" className="w-full p-4 text-sm border border-gray-300 rounded-xl shadow-sm outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition duration-150 ease-in-out text-gray-800 placeholder-gray-500 bg-white/80 backdrop-blur-sm"
-                                // Ensure placeholder quotes are escaped
+                                // Ensure placeholder quotes are escaped (Single quotes inside double quotes are generally fine here, ESLint error was likely for blockquote below)
                                 placeholder="e.g., Am I wrong here?, 'Was my reaction unreasonable?'"
                                 value={query}
                                 onChange={(e) => setQuery(e.target.value)} />
@@ -194,7 +194,15 @@ export default function Home() {
                         {error && <div className="mb-10 max-w-3xl mx-auto"><Alert type={error.includes("partially completed") || error.includes("failed") ? "warning" : "error"} message={error} /></div>}
 
                         {/* Paraphrase Section */}
-                        {paraphrase && !paraphrase.startsWith("[") && ( <div className="mb-10 max-w-3xl mx-auto text-center"> <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-2">Your Situation Summary</h3> <blockquote className="text-base italic text-gray-700 bg-slate-100 p-4 rounded-lg border border-slate-200 shadow-inner">"{paraphrase}"</blockquote> </div> )}
+                        {/* *** FIX APPLIED HERE: Replaced literal " with " *** */}
+                        {paraphrase && !paraphrase.startsWith("[") && (
+                            <div className="mb-10 max-w-3xl mx-auto text-center">
+                                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-2">Your Situation Summary</h3>
+                                <blockquote className="text-base italic text-gray-700 bg-slate-100 p-4 rounded-lg border border-slate-200 shadow-inner">
+                                    "{paraphrase}"
+                                </blockquote>
+                            </div>
+                        )}
                         {paraphrase && paraphrase.startsWith("[") && !error.includes("Paraphrase generation failed") && ( <div className="mb-10 max-w-3xl mx-auto"><Alert type="warning" title="Context Summary Issue" message="Could not generate situation summary." /></div> )}
 
                         {/* The Quick Verdict (Summary) Section */}
