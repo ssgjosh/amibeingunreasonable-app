@@ -107,7 +107,7 @@ export async function POST(request) {
          return Response.json({ error: "Server configuration error: API key missing." }, { status: 500 });
     }
 
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-pro-exp-03-25" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-thinking-exp-01-21" });
     // *** FIX: Increased default generation config tokens (adjust if needed) ***
     const generationConfig = {
         temperature: 0.6,
