@@ -11,47 +11,44 @@ const LoadingSpinner = () => (
     </svg>
 );
 
-// *** MODIFIED Alert component - Renders message as plain text ***
+// Alert component - Modified to render plain text error message
 const Alert = ({ type = 'error', title, message }) => {
     const colors = {
         error: 'bg-red-900/40 border-red-600/70 text-red-200',
         warning: 'bg-yellow-900/40 border-yellow-600/70 text-yellow-200',
     };
-    // Ensure message is a string, provide default if totally empty/null/undefined
-    const displayMessage = typeof message === 'string' && message.trim() !== ''
-        ? message
-        : "An unspecified error occurred or no details were provided.";
-
+    const displayMessage = typeof message === 'string' && message.trim() !== '' ? message : "An unspecified error occurred or no details were provided.";
     return (
         <div className={`border-l-4 p-4 rounded-lg shadow-sm ${colors[type]}`} role="alert">
-            {/* Render title if provided */}
             {title && <p className="font-bold mb-1">{title}</p>}
-            {/* Render the message directly as text, NOT using ReactMarkdown */}
-            <p>{displayMessage}</p>
+            <p>{displayMessage}</p> {/* Render message directly */}
         </div>
     );
 };
 
-// --- MarkdownRenderer (Unchanged from previous version) ---
+// --- MarkdownRenderer (Handles light/dark text based on isDark prop) ---
 const MarkdownRenderer = ({ content, className = "", isDark = false }) => {
     const baseProseClass = "prose prose-sm max-w-none";
-    const themeProseClass = isDark ? "prose-invert" : "";
+    // Theme selection based on isDark prop
+    const themeProseClass = isDark ? "prose-invert" : ""; // prose-invert for dark bg, default for light bg
+    // Specific text styling adjustments based on theme
     const textStyles = isDark
-        ? "prose-p:text-slate-200 prose-strong:text-white prose-a:text-cyan-400 hover:prose-a:text-cyan-300 prose-blockquote:text-slate-300 prose-blockquote:border-slate-600 prose-code:text-pink-300 prose-headings:text-slate-100 prose-ul:text-slate-200 prose-ol:text-slate-200 prose-li:text-slate-200"
-        : "prose-p:text-slate-700 prose-strong:text-slate-900 prose-a:text-cyan-600 hover:prose-a:text-cyan-500 prose-blockquote:text-slate-500 prose-blockquote:border-slate-300 prose-code:text-pink-600 prose-headings:text-slate-900 prose-ul:text-slate-700 prose-ol:text-slate-700 prose-li:text-slate-700";
+        ? "prose-p:text-slate-200 prose-strong:text-white prose-a:text-cyan-400 hover:prose-a:text-cyan-300 prose-blockquote:text-slate-300 prose-blockquote:border-slate-600 prose-code:text-pink-300 prose-headings:text-slate-100 prose-ul:text-slate-200 prose-ol:text-slate-200 prose-li:text-slate-200" // Styles for DARK background
+        : "prose-p:text-slate-700 prose-strong:text-slate-900 prose-a:text-cyan-600 hover:prose-a:text-cyan-500 prose-blockquote:text-slate-600 prose-blockquote:border-slate-400 prose-code:text-pink-700 prose-headings:text-slate-800 prose-ul:text-slate-700 prose-ol:text-slate-700 prose-li:text-slate-700"; // Styles for LIGHT background
 
     return (
+        // Apply base, theme, specific text styles, and any additional className
         <div className={`${baseProseClass} ${themeProseClass} ${textStyles} ${className}`}>
             <ReactMarkdown
-                components={{
+                components={{ // Standard HTML tag overrides for styling
                     p: ({ node, ...props }) => <p className="mb-3 last:mb-0" {...props} />,
                     strong: ({ node, ...props }) => <strong className="font-semibold" {...props} />,
                     ul: ({ node, ...props }) => <ul className="list-disc list-inside mb-3 pl-1" {...props} />,
                     ol: ({ node, ...props }) => <ol className="list-decimal list-inside mb-3 pl-1" {...props} />,
                     li: ({ node, ...props }) => <li className="mb-1" {...props} />,
                     a: ({ node, ...props }) => <a className="font-medium underline" {...props} />,
-                    blockquote: ({ node, ...props }) => <blockquote className="italic border-l-4 pl-4 my-4" {...props} />,
-                    code: ({ node, ...props }) => <code className="px-1 py-0.5 rounded text-sm bg-black/20" {...props} />,
+                    blockquote: ({ node, ...props }) => <blockquote className="italic border-l-4 pl-4 my-4" {...props} />, // Border color handled by prose-blockquote:border-* in textStyles
+                    code: ({ node, ...props }) => <code className={`px-1 py-0.5 rounded text-sm ${isDark ? 'bg-black/20' : 'bg-slate-200'}`} {...props} />, // Code bg depends on theme
                 }}
             >
                 {content || ""}
@@ -118,7 +115,7 @@ export default function Home() {
     const [responses, setResponses] = useState([]);
     const [summary, setSummary] = useState('');
     const [paraphrase, setParaphrase] = useState('');
-    const [error, setError] = useState(''); // Holds error string or null
+    const [error, setError] = useState(null); // Use null for no error
     const [view, setView] = useState('input');
     const [loading, setLoading] = useState(false);
     const [hasAnalyzed, setHasAnalyzed] = useState(false);
@@ -138,75 +135,45 @@ export default function Home() {
         if (!query.trim() || query.trim().length < 5) { setError("Question needed (min 5 chars)."); return; }
 
         console.log("Resetting states...");
-        setError(null); // Explicitly reset error to null
-        setResponses([]); setSummary(''); setParaphrase(''); setSelectedPersona(null);
-        setIsApiComplete(false); setIsTakingLong(false);
-        setLoading(true);
-        setView('loading');
+        setError(null); setResponses([]); setSummary(''); setParaphrase(''); setSelectedPersona(null);
+        setIsApiComplete(false); setIsTakingLong(false); setLoading(true); setView('loading');
         console.log("State set to 'loading'");
 
         if (longLoadTimeoutRef.current) clearTimeout(longLoadTimeoutRef.current);
         const LONG_LOAD_THRESHOLD = 22000;
         longLoadTimeoutRef.current = setTimeout(() => { console.log("Long load threshold reached"); setIsTakingLong(true); }, LONG_LOAD_THRESHOLD);
 
-        let apiError = null; // Use null for no error
-        let apiData = null;
-
+        let apiError = null; let apiData = null;
         try {
             console.log("Sending request to API...");
             const res = await fetch('/api/getResponses', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ context, query }) });
-            clearTimeout(longLoadTimeoutRef.current);
-            console.log(`API response status: ${res.status}`);
-
+            clearTimeout(longLoadTimeoutRef.current); console.log(`API response status: ${res.status}`);
             if (!res.ok) {
                  const errorText = await res.text(); console.error(`API HTTP Error ${res.status}:`, errorText);
                  let detail = errorText; try { const jsonError = JSON.parse(errorText); detail = jsonError.error || errorText; } catch (parseErr) { /* ignore */ }
                  throw new Error(`Server error: ${res.status} ${res.statusText || ''}. ${String(detail).substring(0, 100)}`);
             }
-
             apiData = await res.json(); console.log("API response data received:", apiData);
-
-            // Process API Data
             const receivedResponses = Array.isArray(apiData.responses) ? apiData.responses : [];
             const receivedSummary = typeof apiData.summary === 'string' ? apiData.summary : '';
             const receivedParaphrase = typeof apiData.paraphrase === 'string' ? apiData.paraphrase : '';
-
             console.log("Setting response states...");
-            setResponses(receivedResponses);
-            setSummary(receivedSummary.trim()); // Keep frontend trim safety
-            setParaphrase(receivedParaphrase.trim()); // Keep frontend trim safety
-
-            if (apiData.error) { // Check for application error returned in JSON
-                apiError = apiData.error; console.warn("API returned application error in JSON:", apiData.error);
-            }
-
-            // Set default selected persona
+            setResponses(receivedResponses); setSummary(receivedSummary.trim()); setParaphrase(receivedParaphrase.trim());
+            if (apiData.error) { apiError = apiData.error; console.warn("API returned application error in JSON:", apiData.error); }
             if (receivedResponses.length > 0 && !apiError) {
                 const analystResponse = receivedResponses.find(r => r.persona?.includes("Analyst") && r.response && !r.response.startsWith("["));
                 const firstValidResponse = receivedResponses.find(r => r.response && !r.response.startsWith("["));
                 const defaultPersona = analystResponse ? analystResponse.persona : (firstValidResponse ? firstValidResponse.persona : null);
                 if (defaultPersona) { setSelectedPersona(defaultPersona); console.log(`Setting default persona to: ${defaultPersona}`); }
-                else {
-                    console.log("No valid responses found to set a default persona.");
-                    if (!apiError) { apiError = "Analysis completed, but no valid perspectives could be generated."; console.warn(apiError); }
-                }
-            } else if (!apiError && res.ok && receivedResponses.length === 0) {
-                apiError = "Analysis completed, but no perspectives could be generated."; console.warn(apiError);
-            }
-
+                else { console.log("No valid responses found to set a default persona."); if (!apiError) { apiError = "Analysis completed, but no valid perspectives could be generated."; console.warn(apiError); } }
+            } else if (!apiError && res.ok && receivedResponses.length === 0) { apiError = "Analysis completed, but no perspectives could be generated."; console.warn(apiError); }
         } catch (err) {
             clearTimeout(longLoadTimeoutRef.current); console.error("API Fetch/Processing error in try/catch:", err);
-            // *** Ensure apiError is a string here ***
-            apiError = err instanceof Error ? err.message : String(err);
-            if (!apiError) apiError = "An unknown fetch error occurred."; // Fallback message
+            apiError = err instanceof Error ? err.message : String(err); if (!apiError) apiError = "An unknown fetch error occurred.";
             setResponses([]); setSummary(''); setParaphrase(''); setSelectedPersona(null); console.log("States reset due to catch block error.");
         } finally {
-            console.log("Entering finally block...");
-            setIsApiComplete(true);
-            // *** Ensure error state is set with a string or null ***
-            setError(typeof apiError === 'string' ? apiError : null);
+            console.log("Entering finally block..."); setIsApiComplete(true); setError(typeof apiError === 'string' ? apiError : null);
             console.log(`Final error state set to: ${typeof apiError === 'string' ? apiError : null}`);
-
             setTimeout(() => { console.log("Setting loading=false, view='results'"); setLoading(false); setView('results'); setHasAnalyzed(true); }, 400);
         }
     };
@@ -216,28 +183,58 @@ export default function Home() {
     const handleSelectPersona = (persona) => { console.log(`Selecting persona: ${persona}`); if (persona === selectedPersona || isSwitchingPersona) return; setIsSwitchingPersona(true); if (detailViewRef.current) { detailViewRef.current.classList.remove('animate-fadeIn'); void detailViewRef.current.offsetWidth; } setTimeout(() => { setSelectedPersona(persona); setTimeout(() => { setIsSwitchingPersona(false); requestAnimationFrame(() => { if (detailViewRef.current) { detailViewRef.current.classList.add('animate-fadeIn'); } }); }, 50); }, 150); };
     const selectedResponse = responses.find(r => r.persona === selectedPersona);
 
-    // --- Render Logic (v5.4 styles/layout) ---
+    // --- Render Logic ---
     return (
-        <div className={`min-h-screen bg-gradient-to-br from-gray-800 via-slate-800 to-gray-900 py-12 sm:py-16 px-4 sm:px-6 lg:px-8 font-sans antialiased text-slate-200 animate-gradient-bg`}>
+        // Main container: Dark gradient background
+        <div className={`min-h-screen bg-gradient-to-br from-gray-900 via-slate-900 to-black py-12 sm:py-16 px-4 sm:px-6 lg:px-8 font-sans antialiased text-slate-300 animate-gradient-bg`}>
+             {/* Loading overlay */}
              {view === 'loading' && <LoadingScreen isApiComplete={isApiComplete} isTakingLong={isTakingLong} />}
-             <div className={`max-w-5xl mx-auto bg-slate-800/80 backdrop-blur-lg shadow-2xl rounded-3xl overflow-hidden border border-slate-700/60 transition-opacity duration-300 ease-in-out ${view === 'loading' ? 'opacity-0 invisible' : 'opacity-100 visible'}`}>
-                <div className="bg-gradient-to-r from-slate-900/60 via-gray-900/50 to-slate-800/60 backdrop-blur-sm p-10 sm:p-12 text-center shadow-lg border-b border-slate-700/40">
+
+             {/* Main Content Box: Semi-transparent dark background */}
+             <div className={`max-w-5xl mx-auto bg-slate-800/60 backdrop-blur-lg shadow-2xl rounded-3xl overflow-hidden border border-slate-700/60 transition-opacity duration-300 ease-in-out ${view === 'loading' ? 'opacity-0 invisible' : 'opacity-100 visible'}`}>
+                {/* Header: Dark gradient, gradient text */}
+                <div className="bg-gradient-to-r from-slate-900/80 via-gray-900/70 to-slate-800/80 backdrop-blur-sm p-10 sm:p-12 text-center shadow-lg border-b border-slate-700/40">
                    <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-teal-300 to-cyan-400 tracking-tight pb-2">Am I Being Unreasonable?</h1>
                    <p className="mt-3 text-base sm:text-lg text-slate-400 max-w-2xl mx-auto">Confused by a situation? Get clarity and an objective perspective.</p>
                 </div>
+
+                {/* Input View */}
                 {view === 'input' && (
                     <div className="p-8 sm:p-10 lg:p-12 space-y-8 animate-fadeIn">
                          <div>
-                             <label htmlFor="context-input" className="flex items-center text-base font-semibold text-slate-100 mb-3"><DocumentTextIcon />1. Describe the Situation (Context)</label>
-                             <textarea id="context-input" className="w-full p-4 text-sm border border-slate-600/70 rounded-xl shadow-sm resize-vertical min-h-[200px] outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition duration-150 ease-in-out text-slate-100 placeholder-slate-400 bg-slate-700/30 backdrop-blur-sm hover:bg-slate-700/40 focus:bg-slate-700/50" placeholder="Paste relevant chat logs or describe the events in detail..." value={context} onChange={(e) => setContext(e.target.value)} rows={10} />
+                             {/* Input Label: Larger, brighter text */}
+                             <label htmlFor="context-input" className="flex items-center text-lg font-semibold text-slate-100 mb-3"> {/* Increased size */}
+                                <DocumentTextIcon />1. Describe the Situation (Context)
+                             </label>
+                             {/* Input Textarea: Light background, dark text */}
+                             <textarea
+                                id="context-input"
+                                className="w-full p-4 text-base border border-slate-300 rounded-xl shadow-sm resize-vertical min-h-[200px] outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition duration-150 ease-in-out bg-slate-100 text-slate-900 placeholder-slate-500" // Light bg, dark text, adjusted placeholder
+                                placeholder="Paste relevant chat logs or describe the events in detail..."
+                                value={context}
+                                onChange={(e) => setContext(e.target.value)}
+                                rows={10}
+                              />
                              <p className="text-xs text-slate-400 mt-2 pl-1">More detail provides more accurate analysis.</p>
                          </div>
                          <div>
-                             <label htmlFor="query-input" className="flex items-center text-base font-semibold text-slate-100 mb-3"><ChatBubbleLeftEllipsisIcon/>2. What is Your Specific Question?</label>
-                             <input id="query-input" type="text" className="w-full p-4 text-sm border border-slate-600/70 rounded-xl shadow-sm outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition duration-150 ease-in-out text-slate-100 placeholder-slate-400 bg-slate-700/30 backdrop-blur-sm hover:bg-slate-700/40 focus:bg-slate-700/50" placeholder="e.g., Am I wrong here?, Was my reaction unreasonable?" value={query} onChange={(e) => setQuery(e.target.value)} />
+                             {/* Input Label: Larger, brighter text */}
+                              <label htmlFor="query-input" className="flex items-center text-lg font-semibold text-slate-100 mb-3"> {/* Increased size */}
+                                 <ChatBubbleLeftEllipsisIcon/>2. What is Your Specific Question?
+                              </label>
+                              {/* Input Field: Light background, dark text */}
+                             <input
+                                 id="query-input"
+                                 type="text"
+                                 className="w-full p-4 text-base border border-slate-300 rounded-xl shadow-sm outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition duration-150 ease-in-out bg-slate-100 text-slate-900 placeholder-slate-500" // Light bg, dark text, adjusted placeholder
+                                 placeholder="e.g., Am I wrong here?, Was my reaction unreasonable?"
+                                 value={query}
+                                 onChange={(e) => setQuery(e.target.value)}
+                              />
                          </div>
-                         {/* Error Display in Input view */}
+                         {/* Error Display (Input view) */}
                          {error && view === 'input' && <div className="pt-2"><Alert type="error" title="Input Error" message={error} /></div>}
+                          {/* Submit Button: Unchanged */}
                          <div className="text-center pt-6">
                              <button onClick={askAI} disabled={loading} className={`inline-flex items-center justify-center px-12 py-3.5 border border-transparent text-base font-semibold rounded-full shadow-lg text-white transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 focus:ring-offset-slate-800 transform hover:scale-105 active:scale-100 ${ loading ? 'bg-gray-500 cursor-not-allowed opacity-70' : 'bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700'}`}>
                                 {loading ? ( <> <LoadingSpinner /> <span className="ml-3">Analysing...</span> </> ) : ( <> <SparklesIcon className="w-5 h-5 mr-2"/> Get Objective Analysis</> )}
@@ -245,49 +242,89 @@ export default function Home() {
                          </div>
                     </div>
                 )}
+
+                 {/* Results View */}
                 {view === 'results' && (
                     <div className="bg-transparent px-6 md:px-10 py-10 border-t border-slate-700/40">
-                        {/* Error Display in Results view (Uses modified Alert) */}
-                        {error && (
-                            <div className="mb-10 max-w-3xl mx-auto">
-                                <Alert
-                                    type={error.toLowerCase().includes("incomplete") || error.toLowerCase().includes("partially") || error.toLowerCase().includes("failed") || error.toLowerCase().includes("issue") || error.toLowerCase().includes("skipped") || error.toLowerCase().includes("generate") ? "warning" : "error"}
-                                    title={error.toLowerCase().includes("incomplete") || error.toLowerCase().includes("partially") ? "Analysis Incomplete" : (error.toLowerCase().includes("failed") || error.toLowerCase().includes("issue") || error.toLowerCase().includes("generate") || error.toLowerCase().includes("skipped") ? "Analysis Issue" : "Error")}
-                                    message={error} />
-                            </div>
-                        )}
-                        {/* Results Sections */}
+                        {/* Error Display (Results view) */}
+                        {error && ( <div className="mb-10 max-w-3xl mx-auto"> <Alert type={error.toLowerCase().includes("incomplete") || error.toLowerCase().includes("partially") || error.toLowerCase().includes("failed") || error.toLowerCase().includes("issue") || error.toLowerCase().includes("skipped") || error.toLowerCase().includes("generate") ? "warning" : "error"} title={error.toLowerCase().includes("incomplete") || error.toLowerCase().includes("partially") ? "Analysis Incomplete" : (error.toLowerCase().includes("failed") || error.toLowerCase().includes("issue") || error.toLowerCase().includes("generate") || error.toLowerCase().includes("skipped") ? "Analysis Issue" : "Error")} message={error} /> </div> )}
+
+                        {/* Results Sections Container */}
                         {!error || (error && !error.toLowerCase().includes('service connection') && !error.toLowerCase().includes('invalid request') && !error.toLowerCase().includes('server configuration')) ? (
-                             <>
-                                {paraphrase && !paraphrase.startsWith("[") && ( <div className="mb-10 max-w-3xl mx-auto text-center"> <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">Your Situation Summary</h3> <blockquote className="text-base italic text-slate-200 bg-slate-700/30 p-4 rounded-lg border border-slate-600/50 shadow-inner backdrop-blur-sm"> "{paraphrase}" </blockquote> </div> )}
-                                {paraphrase && paraphrase.startsWith("[") && (!error || !error.toLowerCase().includes('paraphrase')) && ( <div className="mb-10 max-w-3xl mx-auto"> <Alert type="warning" title="Context Summary Issue" message="Could not generate situation summary." /> </div> )}
-                                {summary && !summary.startsWith("[") && ( <div className="mb-12 border-t border-slate-700/40 pt-10"> <h2 className="text-2xl md:text-3xl font-bold text-white mb-6 text-center tracking-tight">The Quick Verdict</h2> <div className="bg-gradient-to-br from-slate-900/80 to-slate-800/80 backdrop-blur-md text-white rounded-xl p-6 shadow-xl max-w-3xl mx-auto border border-slate-700/50"> <MarkdownRenderer content={summary} className="prose-sm" isDark={true} /> </div> </div> )}
-                                {summary && summary.startsWith("[") && (!error || !error.toLowerCase().includes('summary')) && ( <div className="mb-12 max-w-3xl mx-auto"> <Alert type="warning" title="Verdict Issue" message="Could not generate the final verdict summary." /> </div> )}
+                             <div className='space-y-10 md:space-y-12'> {/* Add spacing between result sections */}
+                                {/* Paraphrase Section: Light background, dark text */}
+                                {paraphrase && !paraphrase.startsWith("[") && (
+                                    <div className="max-w-3xl mx-auto text-center">
+                                        <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">Your Situation Summary</h3>
+                                        {/* Light background, dark text */}
+                                        <blockquote className="text-base italic text-slate-800 bg-slate-100 p-4 rounded-lg border border-slate-300 shadow">
+                                             "{paraphrase}"
+                                        </blockquote>
+                                    </div>
+                                )}
+                                {/* Paraphrase Error Alert */}
+                                {paraphrase && paraphrase.startsWith("[") && (!error || !error.toLowerCase().includes('paraphrase')) && ( <div className="max-w-3xl mx-auto"> <Alert type="warning" title="Context Summary Issue" message="Could not generate situation summary." /> </div> )}
+
+                                {/* Verdict Section: Light background, dark text */}
+                                {summary && !summary.startsWith("[") && (
+                                    <div className="border-t border-slate-700/40 pt-10 md:pt-12">
+                                        {/* Heading: Keep gradient style */}
+                                        <h2 className="text-2xl md:text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-teal-300 to-cyan-400 mb-6 text-center tracking-tight">The Quick Verdict</h2>
+                                        {/* Container: Light background */}
+                                        <div className="bg-white text-slate-800 rounded-xl p-6 shadow-lg max-w-3xl mx-auto border border-slate-300">
+                                            {/* Markdown: Pass isDark=false */}
+                                            <MarkdownRenderer content={summary} className="prose-sm" isDark={false} />
+                                        </div>
+                                    </div>
+                                 )}
+                                 {/* Summary Error Alert */}
+                                 {summary && summary.startsWith("[") && (!error || !error.toLowerCase().includes('summary')) && ( <div className="max-w-3xl mx-auto"> <Alert type="warning" title="Verdict Issue" message="Could not generate the final verdict summary." /> </div> )}
+
+                                {/* Detailed Perspectives Section */}
                                 {responses.some(r => r.response && !r.response.startsWith("[")) && (
-                                    <div className="border-t border-slate-700/40 pt-10">
-                                        <h2 className="text-2xl md:text-3xl font-bold text-white mb-8 text-center tracking-tight">Detailed Analysis Perspectives</h2>
+                                    <div className="border-t border-slate-700/40 pt-10 md:pt-12">
+                                         {/* Heading: Keep gradient style */}
+                                        <h2 className="text-2xl md:text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-teal-300 to-cyan-400 mb-8 text-center tracking-tight">Detailed Analysis Perspectives</h2>
+                                         {/* Persona Buttons: Unchanged styling */}
                                         <div className="flex justify-center flex-wrap gap-3 sm:gap-4 mb-10 border-b border-slate-700/40 pb-6">
                                              {responses.map((r) => ( r.response && !r.response.startsWith("[") && <button key={r.persona} onClick={() => handleSelectPersona(r.persona)} className={`px-5 py-2 text-sm font-medium rounded-full transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2 focus:ring-offset-slate-800 whitespace-nowrap transform hover:scale-103 active:scale-100 ${ selectedPersona === r.persona ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-lg ring-2 ring-offset-1 ring-cyan-400 scale-105' : 'text-slate-200 bg-slate-700/40 hover:bg-slate-600/60 border border-slate-600/60' }`} > {r.persona.split('(')[0].trim()} </button> ))}
                                          </div>
+                                         {/* Selected Persona Detail View */}
                                         <div ref={detailViewRef} className={`transition-opacity duration-300 ease-in-out ${isSwitchingPersona ? 'opacity-30' : 'opacity-100'}`} >
-                                            {selectedResponse && !selectedResponse.response.startsWith("[") && ( <div key={selectedPersona} className="bg-slate-800/50 backdrop-blur-sm rounded-2xl p-6 md:p-8 shadow-xl border border-slate-700/40 max-w-3xl mx-auto animate-fadeIn mb-10"> <h3 className="text-xl font-semibold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-teal-300 mb-5">{selectedResponse.persona}</h3> <div className="text-[15px] leading-relaxed space-y-4"> <MarkdownRenderer content={selectedResponse.response} isDark={true} /> </div> </div> )}
+                                            {selectedResponse && !selectedResponse.response.startsWith("[") && (
+                                                // Container: Light background
+                                                <div key={selectedPersona} className="bg-white rounded-2xl p-6 md:p-8 shadow-xl border border-slate-300 max-w-3xl mx-auto animate-fadeIn mb-10">
+                                                    {/* Persona Title: Dark text */}
+                                                    <h3 className="text-xl font-semibold text-slate-800 mb-5">
+                                                        {selectedResponse.persona}
+                                                    </h3>
+                                                    {/* Markdown Content: Pass isDark=false */}
+                                                    <div className="text-[15px] leading-relaxed space-y-4">
+                                                        <MarkdownRenderer content={selectedResponse.response} isDark={false} />
+                                                    </div>
+                                                </div>
+                                            )}
+                                             {/* Prompt to select persona */}
                                              {!selectedResponse && responses.some(r => r.response && !r.response.startsWith("[")) && ( <div className="text-center text-slate-500 italic mt-4">Select a perspective above to view details.</div> )}
                                          </div>
                                     </div>
                                 )}
-                                {/* Fallback if no content and no major error */}
+                                {/* Fallback message */}
                                 {!summary && !responses.some(r => r.response && !r.response.startsWith("[")) && !error && ( <div className="text-center text-slate-400 py-10"> No analysis could be generated for this input. Please try rephrasing your situation or question. </div> )}
-                            </>
-                        ) : null /* Don't render results sections if critical error */}
-                        {/* Restart Button */}
-                        <div className="mt-12 text-center border-t border-slate-700/40 pt-10">
+                            </div> // End results sections container
+                        ) : null /* Don't render results if critical error */}
+                        {/* Restart Button: Unchanged */}
+                        <div className="mt-12 text-center border-t border-slate-700/40 pt-10 md:pt-12">
                               <button onClick={handleRestart} className="inline-flex items-center justify-center px-10 py-3 border border-slate-600/60 text-base font-medium rounded-xl shadow-sm text-slate-200 bg-slate-700/40 hover:bg-slate-600/60 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 focus:ring-offset-slate-800 transition duration-150 ease-in-out transform hover:scale-103 active:scale-100" > Analyse Another Situation </button>
                         </div>
                     </div>
                 )}
+                 {/* Fallback for invalid view state */}
                  {view !== 'input' && view !== 'results' && view !== 'loading' && ( <div className="p-12 text-center text-red-400">Internal application error: Invalid view state.</div> )}
             </div>
+             {/* Footer: Unchanged */}
              <footer className="text-center mt-16 text-slate-500 text-sm px-4"> © {new Date().getFullYear()} Am I Being Unreasonable?™ | AI Analysis Tool | For informational purposes only. Use results critically. </footer>
+             {/* Global Styles: Unchanged */}
              <style jsx global>{` @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } } .animate-fadeIn { animation: fadeIn 0.4s ease-out forwards; } @keyframes gradient-xy { 0%, 100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } } .animate-gradient-xy { background-size: 300% 300%; animation: gradient-xy 18s ease infinite; } @keyframes gradient-background { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } } .animate-gradient-bg { background-size: 200% 200%; animation: gradient-background 25s ease infinite; } @keyframes pulse-bar { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } } .animate-pulse-bar { animation: pulse-bar 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite; } `}</style>
         </div>
     );
