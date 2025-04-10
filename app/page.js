@@ -179,16 +179,18 @@ export default function Home() {
     };
 
 
-    // === API Call Functions ===
+    // Step 1: Trigger getting Optional Questions
     const handleInitialSubmit = async () => {
         console.log("Step 1: handleInitialSubmit triggered");
         const finalQuery = queryToSend.trim();
         const currentContext = context.trim(); // Use current context directly
 
+        // Validation
         if (!currentContext || currentContext.length < 10) { setError("Context needed (min 10 chars)."); return; }
         if (!finalQuery || finalQuery.length < 5) { setError("Question needed (min 5 chars). Select an option or type your own."); return; }
 
-        setError(null); setIsLoadingQuestions(true);
+        setError(null); // Clear previous errors
+        setIsLoadingQuestions(true);
         setLoadingMessage("Checking context for clarification points...");
         setCurrentStep('loadingQuestions');
         setInitialContext(currentContext); // Store the context used for this attempt
@@ -203,15 +205,11 @@ export default function Home() {
             console.log("Generate Questions API Response Status:", res.status);
 
             if (!res.ok) {
-                 // Handle non-2xx responses specifically, including 405
-                const errorText = await res.text();
-                let detail = `Status ${res.status}: ${res.statusText || 'Unknown Error'}`;
-                try { const jsonError = JSON.parse(errorText); detail = jsonError.error || detail; } catch { /* ignore */ }
-                 // Customize error message for 405
-                if (res.status === 405) {
-                    detail = "Server configuration issue: Method not allowed for generating questions.";
-                }
-                throw new Error(`Server error generating questions: ${detail}`);
+                 const errorText = await res.text();
+                 let detail = `Status ${res.status}: ${res.statusText || 'Unknown Error'}`;
+                 try { const jsonError = JSON.parse(errorText); detail = jsonError.error || detail; } catch { /* ignore */ }
+                 if (res.status === 405) { detail = "Server configuration issue: Method not allowed for generating questions."; }
+                 throw new Error(`Server error generating questions: ${detail}`);
             }
 
             const data = await res.json();
@@ -223,14 +221,14 @@ export default function Home() {
                 setCurrentStep('showQuestions');
             } else {
                 console.log("No questions generated or issue, skipping directly to analysis.");
-                // Pass the *stored* initialContext and finalQuery
-                await runFinalAnalysis(initialContext, finalQuery, {});
+                // Pass the *current* context and finalQuery if skipping
+                await runFinalAnalysis(currentContext, finalQuery, {}); // Use currentContext here too
             }
         } catch (err) {
             console.error("Error fetching/processing optional questions:", err);
             setError(`Failed to get clarification questions: ${err.message}. Proceeding directly to analysis.`);
-            // Fallback: Proceed directly using the stored initialContext and finalQuery
-             await runFinalAnalysis(initialContext, finalQuery, {}); // Use stored context
+            // Fallback: Proceed directly using the *current* context and finalQuery
+             await runFinalAnalysis(currentContext, finalQuery, {}); // *** FIX: Use currentContext, not potentially stale initialContext ***
         } finally {
             setIsLoadingQuestions(false);
             setLoadingMessage('');
