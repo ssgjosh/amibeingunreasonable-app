@@ -5,7 +5,6 @@ import ReactMarkdown from 'react-markdown';
 // --- Components ---
 // Assuming LoadingSpinner, Alert, MarkdownRenderer, and Icon components
 // are defined correctly above as in your previous version.
-// Ensure they do not have internal issues causing serialization problems.
 
 const LoadingSpinner = () => (
     <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -20,6 +19,8 @@ const Alert = ({ type = 'error', title, message }) => {
         warning: 'bg-yellow-900/40 border-yellow-600/70 text-yellow-200',
     };
     const displayMessage = typeof message === 'string' && message.trim() !== '' ? message : "An unspecified error occurred or no details were provided.";
+    // Basic check to prevent rendering if message is truly empty or null/undefined
+    if (!displayMessage) return null;
     return (
         <div className={`border-l-4 p-4 rounded-lg shadow-sm ${colors[type]}`} role="alert">
             {title && <p className="font-bold mb-1">{title}</p>}
@@ -27,6 +28,7 @@ const Alert = ({ type = 'error', title, message }) => {
         </div>
     );
 };
+
 
 const MarkdownRenderer = ({ content, className = "", isDark = false }) => {
     const baseProseClass = "prose prose-sm max-w-none";
@@ -71,70 +73,39 @@ const LoadingScreen = ({ loadingMessage, isApiComplete, isTakingLong }) => {
              progressIntervalRef.current = setInterval(() => {
                  setProgress(prev => {
                      if (prev >= 95) { clearInterval(progressIntervalRef.current); return 95; }
-                     return Math.min(prev + 1, 95); // Simulate progress, stop near end
+                     return Math.min(prev + 1, 95);
                  });
-             }, 200); // Adjust timing as needed
+             }, 200);
          };
-
          if (isApiComplete) {
              if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
-             setProgress(100); // Jump to 100% on completion
+             setProgress(100);
          } else if (isTakingLong) {
              if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
-             setProgress(prev => Math.max(prev, 90)); // Ensure it shows high progress if taking long
+             setProgress(prev => Math.max(prev, 90));
          } else {
-             startProgressSimulation(); // Start simulation if loading normally
+             startProgressSimulation();
          }
-
-         // Cleanup interval on unmount or dependency change
          return () => { if (progressIntervalRef.current) clearInterval(progressIntervalRef.current); };
-     }, [isApiComplete, isTakingLong]); // Dependencies: only completion and long load state
+     }, [isApiComplete, isTakingLong]);
 
      // Effect for cycling loading messages
      useEffect(() => {
          if (textIntervalRef.current) clearInterval(textIntervalRef.current);
-
          const messages = isTakingLong ? longLoadingMessages : regularLoadingMessages;
          const intervalTime = isTakingLong ? 4000 : 3500;
          let currentIndex = Math.floor(Math.random() * messages.length);
-
-         // Set initial message (respecting override)
-         setCurrentLoadingText(loadingMessage || messages[currentIndex]);
-
-         // Start interval to cycle messages
+         // Set initial message, respecting override if provided
+         setCurrentLoadingText(loadingMessage || messages[currentIndex] || "Processing...");
          textIntervalRef.current = setInterval(() => {
              currentIndex = (currentIndex + 1) % messages.length;
-             setCurrentLoadingText(messages[currentIndex]);
+             setCurrentLoadingText(messages[currentIndex] || "Still working...");
          }, intervalTime);
-
-         // Cleanup interval on unmount or dependency change
          return () => { if (textIntervalRef.current) clearInterval(textIntervalRef.current); };
-     }, [isTakingLong, loadingMessage]); // Dependencies: long load state and initial override message
+     }, [isTakingLong, loadingMessage]); // Rerun if takingLong status changes or an initial message is provided
 
      // Render the loading screen
-     return (
-         <div className="fixed inset-0 bg-gradient-to-br from-slate-900 via-black to-slate-800 z-50 flex flex-col items-center justify-center p-8 text-center overflow-hidden">
-             <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-black to-indigo-900 animate-gradient-xy opacity-80"></div>
-             <div className="relative z-10 flex flex-col items-center justify-center w-full max-w-md">
-                 {/* Spinner */}
-                 <svg className="animate-spin h-12 w-12 text-cyan-400 mb-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                 </svg>
-                 {/* Title */}
-                 <h2 className="text-3xl font-bold text-white mb-4 tracking-tight">Analysing Your Situation...</h2>
-                 {/* Progress Bar */}
-                 <div className="w-full bg-slate-700 rounded-full h-2.5 mb-6 overflow-hidden">
-                     <div
-                         className={`bg-gradient-to-r from-cyan-400 to-blue-500 h-2.5 rounded-full ${progress < 100 ? 'transition-all duration-200 ease-linear' : 'transition-width duration-300 ease-out'} ${isTakingLong && !isApiComplete ? 'animate-pulse-bar' : ''}`}
-                         style={{ width: `${progress}%` }}
-                     ></div>
-                 </div>
-                 {/* Loading Text */}
-                 <p className="text-lg text-slate-400 transition-opacity duration-500 ease-in-out h-12">{currentLoadingText}</p>
-             </div>
-         </div>
-     );
+     return ( <div className="fixed inset-0 bg-gradient-to-br from-slate-900 via-black to-slate-800 z-50 flex flex-col items-center justify-center p-8 text-center overflow-hidden"> <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-black to-indigo-900 animate-gradient-xy opacity-80"></div> <div className="relative z-10 flex flex-col items-center justify-center w-full max-w-md"> <svg className="animate-spin h-12 w-12 text-cyan-400 mb-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> <h2 className="text-3xl font-bold text-white mb-4 tracking-tight">Analysing Your Situation...</h2> <div className="w-full bg-slate-700 rounded-full h-2.5 mb-6 overflow-hidden"> <div className={`bg-gradient-to-r from-cyan-400 to-blue-500 h-2.5 rounded-full ${progress < 100 ? 'transition-all duration-200 ease-linear' : 'transition-width duration-300 ease-out'} ${isTakingLong && !isApiComplete ? 'animate-pulse-bar' : ''}`} style={{ width: `${progress}%` }}></div> </div> <p className="text-lg text-slate-400 transition-opacity duration-500 ease-in-out h-12">{currentLoadingText}</p> </div> </div> );
  };
 
 const IconWrapper = ({ children }) => <span className="inline-block mr-2 text-slate-400">{children}</span>;
@@ -143,23 +114,17 @@ const ChatBubbleLeftEllipsisIcon = () => <IconWrapper><svg xmlns="http://www.w3.
 const LightBulbIcon = () => <IconWrapper><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M12 18v-5.25m0 0a6.01 6.01 0 0 0 1.5-.189m-1.5.189a6.01 6.01 0 0 1-1.5-.189m3.75 7.478a12.06 12.06 0 0 1-4.5 0m3.75 2.383a14.406 14.406 0 0 1-3 0M14.25 18v-.192c0-.983.658-1.823 1.508-2.316a7.5 7.5 0 1 0-7.517 0c.85.493 1.509 1.333 1.509 2.316V18" /></svg></IconWrapper>;
 const SparklesIcon = ({className="w-5 h-5 inline-block"}) => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}><path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L1.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456ZM16.894 20.567 16.5 21.75l-.394-1.183a2.25 2.25 0 0 0-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 0 0 1.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 0 0 1.423 1.423l1.183.394-1.183.394a2.25 2.25 0 0 0-1.423 1.423Z" /></svg>;
 
-
 // --- Main Page Component ---
 export default function Home() {
     // === State Management ===
-    // Input state
     const [context, setContext] = useState('');
     const [selectedQueryOption, setSelectedQueryOption] = useState('');
     const [customQuery, setCustomQuery] = useState('');
     const [queryToSend, setQueryToSend] = useState('');
-
-    // Multi-step process state
     const [currentStep, setCurrentStep] = useState('initialInput'); // 'initialInput', 'loadingQuestions', 'showQuestions', 'loadingAnalysis', 'showResults'
     const [initialContext, setInitialContext] = useState('');
-    const [generatedQuestions, setGeneratedQuestions] = useState([]); // Array of { id: number, text: string }
-    const [questionAnswers, setQuestionAnswers] = useState({}); // Object { [questionId]: answerText }
-
-    // Loading and results state
+    const [generatedQuestions, setGeneratedQuestions] = useState([]);
+    const [questionAnswers, setQuestionAnswers] = useState({});
     const [isLoadingQuestions, setIsLoadingQuestions] = useState(false);
     const [isLoadingAnalysis, setIsLoadingAnalysis] = useState(false);
     const [loadingMessage, setLoadingMessage] = useState('');
@@ -167,7 +132,7 @@ export default function Home() {
     const [summary, setSummary] = useState('');
     const [paraphrase, setParaphrase] = useState('');
     const [error, setError] = useState(null);
-    const [hasAnalyzed, setHasAnalyzed] = useState(false); // To track if analysis was ever run
+    const [hasAnalyzed, setHasAnalyzed] = useState(false);
     const [selectedPersona, setSelectedPersona] = useState(null);
     const [isSwitchingPersona, setIsSwitchingPersona] = useState(false);
     const [isApiComplete, setIsApiComplete] = useState(false);
@@ -175,12 +140,9 @@ export default function Home() {
     const longLoadTimeoutRef = useRef(null);
     const detailViewRef = useRef(null);
 
-    // Log current step for debugging
-    // useEffect(() => { console.log(`Current step state: ${currentStep}`); }, [currentStep]);
-
     // === Constants ===
     const queryOptions = [ { value: '', label: 'Select a question or type your own...' }, { value: 'Am I being unreasonable?', label: 'Am I being unreasonable?' }, { value: 'Am I in the wrong?', label: 'Am I in the wrong?' }, { value: 'AITA?', label: 'AITA?' }, { value: 'Was my reaction justified?', label: 'Was my reaction justified?' }, { value: 'What perspective am I missing?', label: 'What perspective am I missing?' }, { value: 'other', label: 'Other (Type below)...' } ];
-    const LONG_LOAD_THRESHOLD = 22000; // ms
+    const LONG_LOAD_THRESHOLD = 22000;
 
     // === Event Handlers ===
     const handleQueryOptionChange = (event) => {
@@ -192,138 +154,127 @@ export default function Home() {
             setQueryToSend(selectedValue); setCustomQuery('');
         }
     };
-
     const handleCustomQueryChange = (event) => {
         const value = event.target.value;
         setCustomQuery(value); setQueryToSend(value);
     };
-
     const handleQuestionAnswerChange = (questionId, answer) => {
         setQuestionAnswers(prev => ({ ...prev, [questionId]: answer }));
     };
-
     const handleSelectPersona = (persona) => {
         if (persona === selectedPersona || isSwitchingPersona) return;
         setIsSwitchingPersona(true);
-        if (detailViewRef.current) { detailViewRef.current.style.opacity = 0; } // Fade out manually
+        if (detailViewRef.current) { detailViewRef.current.style.opacity = 0; }
         setTimeout(() => {
             setSelectedPersona(persona);
-            setTimeout(() => {
+            // Ensure the component re-renders before fading in
+            requestAnimationFrame(() => {
+                if (detailViewRef.current) {
+                     detailViewRef.current.style.opacity = 1;
+                     detailViewRef.current.classList.add('animate-fadeIn'); // Re-add fade-in class if needed
+                 }
                 setIsSwitchingPersona(false);
-                requestAnimationFrame(() => {
-                    if (detailViewRef.current) { detailViewRef.current.style.opacity = 1; } // Fade in manually
-                });
-            }, 50); // Short delay for render
-        }, 150); // Fade out duration
+            });
+        }, 150); // Match fade-out duration
     };
 
-    // === API Call Functions ===
 
-    // Step 1: Trigger getting Optional Questions
+    // === API Call Functions ===
     const handleInitialSubmit = async () => {
         console.log("Step 1: handleInitialSubmit triggered");
         const finalQuery = queryToSend.trim();
+        const currentContext = context.trim(); // Use current context directly
 
-        // Validation
-        if (!context.trim() || context.trim().length < 10) { setError("Context needed (min 10 chars)."); return; }
+        if (!currentContext || currentContext.length < 10) { setError("Context needed (min 10 chars)."); return; }
         if (!finalQuery || finalQuery.length < 5) { setError("Question needed (min 5 chars). Select an option or type your own."); return; }
 
-        setError(null); // Clear previous errors
-        setIsLoadingQuestions(true);
+        setError(null); setIsLoadingQuestions(true);
         setLoadingMessage("Checking context for clarification points...");
         setCurrentStep('loadingQuestions');
-        setInitialContext(context); // Store context for later use
+        setInitialContext(currentContext); // Store the context used for this attempt
 
         try {
             const res = await fetch('/api/generate-questions', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ context }),
+                body: JSON.stringify({ context: currentContext }), // Send current context
             });
 
+            console.log("Generate Questions API Response Status:", res.status);
+
             if (!res.ok) {
+                 // Handle non-2xx responses specifically, including 405
                 const errorText = await res.text();
-                let detail = errorText; try { const jsonError = JSON.parse(errorText); detail = jsonError.error || errorText; } catch { /* ignore */ }
-                throw new Error(`Server error generating questions: ${res.status} ${res.statusText || ''}. ${String(detail).substring(0, 100)}`);
+                let detail = `Status ${res.status}: ${res.statusText || 'Unknown Error'}`;
+                try { const jsonError = JSON.parse(errorText); detail = jsonError.error || detail; } catch { /* ignore */ }
+                 // Customize error message for 405
+                if (res.status === 405) {
+                    detail = "Server configuration issue: Method not allowed for generating questions.";
+                }
+                throw new Error(`Server error generating questions: ${detail}`);
             }
 
             const data = await res.json();
-            console.log("Received questions:", data);
+            console.log("Received questions data:", data);
+
             if (Array.isArray(data.questions) && data.questions.length > 0) {
-                setGeneratedQuestions(data.questions.map((q, index) => ({ id: q.id ?? index + 1, text: q.text }))); // Ensure unique IDs
-                setQuestionAnswers({}); // Reset answers for new questions
+                setGeneratedQuestions(data.questions.map((q, index) => ({ id: q.id ?? index + 1, text: q.text })));
+                setQuestionAnswers({});
                 setCurrentStep('showQuestions');
             } else {
-                console.log("No questions generated or issue, skipping to analysis.");
-                await runFinalAnalysis(context, finalQuery, {}); // Pass empty answers object directly
+                console.log("No questions generated or issue, skipping directly to analysis.");
+                // Pass the *stored* initialContext and finalQuery
+                await runFinalAnalysis(initialContext, finalQuery, {});
             }
         } catch (err) {
-            console.error("Error fetching optional questions:", err);
+            console.error("Error fetching/processing optional questions:", err);
             setError(`Failed to get clarification questions: ${err.message}. Proceeding directly to analysis.`);
-            // Fallback: Proceed directly to analysis
-            await runFinalAnalysis(context, finalQuery, {}); // Pass empty answers object
+            // Fallback: Proceed directly using the stored initialContext and finalQuery
+             await runFinalAnalysis(initialContext, finalQuery, {}); // Use stored context
         } finally {
             setIsLoadingQuestions(false);
-            setLoadingMessage(''); // Clear specific message
+            setLoadingMessage('');
         }
     };
 
-
-    // Step 2: Trigger Final Analysis (Can be called from Question view or directly if questions skipped/failed)
     const runFinalAnalysis = async (contextToUse, queryToUse, answersToUse) => {
         console.log("Step 2: runFinalAnalysis triggered");
 
-        // Ensure context and query are valid before proceeding
-        if (!contextToUse || contextToUse.trim().length < 10) {
-             console.error("Attempted final analysis with invalid context.");
-             setError("Context missing for final analysis. Please restart.");
-             setCurrentStep('initialInput'); // Go back to input if context is lost
-             return;
-         }
-        if (!queryToUse || queryToUse.trim().length < 5) {
-             console.error("Attempted final analysis with invalid query.");
-             setError("Question missing for final analysis. Please restart.");
-             setCurrentStep('initialInput'); // Go back to input if query is lost
-             return;
-         }
+        if (!contextToUse || contextToUse.trim().length < 10) { /* ... validation ... */ setError("Context missing for final analysis."); setCurrentStep('initialInput'); return; }
+        if (!queryToUse || queryToUse.trim().length < 5) { /* ... validation ... */ setError("Question missing for final analysis."); setCurrentStep('initialInput'); return; }
 
-        // Reset states for the analysis phase
         setResponses([]); setSummary(''); setParaphrase(''); setSelectedPersona(null);
         setIsApiComplete(false); setIsTakingLong(false);
         setIsLoadingAnalysis(true);
-        setLoadingMessage('Analysing perspectives...'); // Set general loading message
-        setCurrentStep('loadingAnalysis'); // Trigger the main loading screen display
+        setLoadingMessage('Analysing perspectives...');
+        setCurrentStep('loadingAnalysis');
 
-        // Start the long load timer
         if (longLoadTimeoutRef.current) clearTimeout(longLoadTimeoutRef.current);
-        longLoadTimeoutRef.current = setTimeout(() => {
-            console.log("Long load threshold reached");
-            setIsTakingLong(true);
-        }, LONG_LOAD_THRESHOLD);
+        longLoadTimeoutRef.current = setTimeout(() => { setIsTakingLong(true); }, LONG_LOAD_THRESHOLD);
 
-        let apiError = null; // Track errors specifically from this API call
+        let apiError = null; // Reset specific API error for this call
 
         try {
-            console.log("Sending request to Main API with:", { query: queryToUse, answers: answersToUse });
-            const res = await fetch('/api/getResponses', {
+            console.log("Sending request to Main API (/api/getResponses) with:", { query: queryToUse, answers: answersToUse });
+            const res = await fetch('/api/getResponses', { // Correct endpoint
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ context: contextToUse, query: queryToUse, answers: answersToUse })
             });
 
-            clearTimeout(longLoadTimeoutRef.current); // Clear timer once response starts
-            console.log(`API response status: ${res.status}`);
+            clearTimeout(longLoadTimeoutRef.current);
+            console.log("GetResponses API Response Status:", res.status);
 
             if (!res.ok) {
-                const errorText = await res.text(); console.error(`API HTTP Error ${res.status}:`, errorText);
-                let detail = errorText; try { const jsonError = JSON.parse(errorText); detail = jsonError.error || errorText; } catch (parseErr) { /* ignore */ }
-                throw new Error(`Server error during analysis: ${res.status} ${res.statusText || ''}. ${String(detail).substring(0, 100)}`);
+                const errorText = await res.text();
+                let detail = `Status ${res.status}: ${res.statusText || 'Unknown Error'}`;
+                try { const jsonError = JSON.parse(errorText); detail = jsonError.error || detail; } catch { /* ignore */ }
+                throw new Error(`Server error during analysis: ${detail}`);
             }
 
             const apiData = await res.json();
-            console.log("API response data received:", apiData);
+            console.log("GetResponses API response data received:", apiData);
 
-            // Process successful response data
             const receivedResponses = Array.isArray(apiData.responses) ? apiData.responses : [];
             const receivedSummary = typeof apiData.summary === 'string' ? apiData.summary : '';
             const receivedParaphrase = typeof apiData.paraphrase === 'string' ? apiData.paraphrase : '';
@@ -332,92 +283,71 @@ export default function Home() {
             setSummary(receivedSummary.trim());
             setParaphrase(receivedParaphrase.trim());
 
-            if (apiData.error) { // Check for application-level errors returned in JSON
-                apiError = apiData.error;
+            if (apiData.error) {
+                apiError = apiData.error; // Capture application-level errors from API
                 console.warn("API returned application error in JSON:", apiData.error);
             }
 
-            // Set default selected persona if analysis was successful
-            if (receivedResponses.length > 0 && !apiError) {
-                const analystResponse = receivedResponses.find(r => r.persona?.includes("Analyst") && r.response && !r.response.startsWith("["));
-                const firstValidResponse = receivedResponses.find(r => r.response && !r.response.startsWith("["));
-                const defaultPersona = analystResponse?.persona ?? firstValidResponse?.persona ?? null;
-                if (defaultPersona) {
-                    setSelectedPersona(defaultPersona);
-                    console.log(`Setting default persona to: ${defaultPersona}`);
-                } else {
-                     console.log("No valid responses found to set a default persona.");
-                     if (!apiError) apiError = "Analysis completed, but no valid perspectives could be generated.";
-                }
-            } else if (!apiError && res.ok && receivedResponses.length === 0) {
-                // Handle case where API returns 200 OK but no responses generated
-                apiError = "Analysis completed, but no perspectives could be generated.";
-                console.warn(apiError);
-            }
+            // Set default persona only if there are valid responses AND no critical error reported by API
+             if (receivedResponses.length > 0 && !apiError?.toLowerCase().includes('failed')) {
+                 const analystResponse = receivedResponses.find(r => r.persona?.includes("Analyst") && r.response && !r.response.startsWith("["));
+                 const firstValidResponse = receivedResponses.find(r => r.response && !r.response.startsWith("["));
+                 const defaultPersona = analystResponse?.persona ?? firstValidResponse?.persona ?? null;
+
+                 if (defaultPersona) {
+                     setSelectedPersona(defaultPersona);
+                     console.log(`Setting default persona to: ${defaultPersona}`);
+                 } else {
+                     console.log("No valid individual responses found to set a default persona, though API call succeeded.");
+                     // Don't overwrite apiError if it already exists
+                     if (!apiError) apiError = "Analysis completed, but perspectives might be invalid or missing.";
+                 }
+            } else if (!apiError && receivedResponses.length === 0) {
+                 apiError = "Analysis completed, but no perspectives could be generated.";
+                 console.warn(apiError);
+             }
 
         } catch (err) {
-            clearTimeout(longLoadTimeoutRef.current); // Clear timer on fetch error
-            console.error("API Fetch/Processing error in try/catch:", err);
-            apiError = err instanceof Error ? err.message : String(err);
-            if (!apiError) apiError = "An unknown fetch error occurred.";
-            // Reset results on critical fetch error
+            clearTimeout(longLoadTimeoutRef.current);
+            console.error("API Fetch/Processing error in runFinalAnalysis:", err);
+            apiError = err.message || "An unknown fetch error occurred.";
             setResponses([]); setSummary(''); setParaphrase(''); setSelectedPersona(null);
-            console.log("States reset due to catch block error.");
         } finally {
-            console.log("Entering finally block...");
-            setIsApiComplete(true); // Mark API as complete for LoadingScreen progress
-            setError(apiError); // Set the error state based on the analysis outcome
+            console.log("Entering runFinalAnalysis finally block...");
+            setIsApiComplete(true);
+            setError(apiError); // Set final error state based on API call outcome
             console.log(`Final error state set to: ${apiError}`);
-            setLoadingMessage(''); // Clear specific loading message
-
-            // Delay transition to results to allow loading screen animation to finish
+            setLoadingMessage('');
             setTimeout(() => {
-                console.log("Setting loadingAnalysis=false, view='results'");
                 setIsLoadingAnalysis(false);
                 setCurrentStep('showResults');
-                setHasAnalyzed(true); // Mark that analysis has been attempted/completed
-            }, 400); // Match LoadingScreen fade-out/progress completion
+                setHasAnalyzed(true);
+            }, 400);
         }
     };
 
     // === Restart Function ===
     const handleRestart = () => {
         console.log("Restarting...");
-        // Reset all relevant states to initial values
-        setContext('');
-        setSelectedQueryOption('');
-        setCustomQuery('');
-        setQueryToSend('');
-        setInitialContext('');
-        setGeneratedQuestions([]);
-        setQuestionAnswers({});
-        setResponses([]);
-        setSummary('');
-        setParaphrase('');
-        setError(null);
-        setSelectedPersona(null);
-        setHasAnalyzed(false);
-        setCurrentStep('initialInput'); // Back to the start
-        setIsLoadingQuestions(false);
-        setIsLoadingAnalysis(false);
-        setIsApiComplete(false);
-        setIsTakingLong(false);
-        setLoadingMessage('');
+        setContext(''); setSelectedQueryOption(''); setCustomQuery(''); setQueryToSend('');
+        setInitialContext(''); setGeneratedQuestions([]); setQuestionAnswers({});
+        setResponses([]); setSummary(''); setParaphrase(''); setError(null); setSelectedPersona(null); setHasAnalyzed(false);
+        setCurrentStep('initialInput');
+        setIsLoadingQuestions(false); setIsLoadingAnalysis(false); setIsApiComplete(false); setIsTakingLong(false); setLoadingMessage('');
         if (longLoadTimeoutRef.current) clearTimeout(longLoadTimeoutRef.current);
-        window.scrollTo(0, 0); // Scroll to top
+        window.scrollTo(0, 0);
     };
 
-
-    // Determine if the main loading overlay should be active
+    // === Derived State for Rendering ===
     const showLoadingOverlay = currentStep === 'loadingQuestions' || currentStep === 'loadingAnalysis';
+    // FIX: Define selectedResponse clearly *before* the return statement where it's used
+    const selectedResponse = responses.find(r => r.persona === selectedPersona);
 
     // === Render Logic ===
     return (
         <div className={`min-h-screen bg-gradient-to-br from-gray-900 via-slate-900 to-black py-12 sm:py-16 px-4 sm:px-6 lg:px-8 font-sans antialiased text-slate-300 animate-gradient-bg`}>
-            {/* Conditionally render the LoadingScreen overlay */}
             {showLoadingOverlay && <LoadingScreen loadingMessage={loadingMessage} isApiComplete={isApiComplete} isTakingLong={isTakingLong} />}
 
-            {/* Main content area - visibility controlled by loading state */}
             <div className={`max-w-5xl mx-auto bg-slate-800/60 backdrop-blur-lg shadow-2xl rounded-3xl overflow-hidden border border-slate-700/60 transition-opacity duration-300 ease-in-out ${showLoadingOverlay ? 'opacity-0 invisible' : 'opacity-100 visible'}`}>
                 {/* Header */}
                 <div className="bg-gradient-to-r from-slate-900/80 via-gray-900/70 to-slate-800/80 backdrop-blur-sm p-10 sm:p-12 text-center shadow-lg border-b border-slate-700/40">
@@ -425,18 +355,15 @@ export default function Home() {
                     <p className="mt-3 text-base sm:text-lg text-slate-400 max-w-2xl mx-auto">Confused by a situation? Get clarity and an objective perspective.</p>
                 </div>
 
-                {/* === Views based on currentStep === */}
-
                 {/* Step 1: Initial Input View */}
                 {currentStep === 'initialInput' && (
-                    <div className="p-8 sm:p-10 lg:p-12 space-y-8 animate-fadeIn">
-                        {/* Context Input */}
-                        <div>
+                     <div className="p-8 sm:p-10 lg:p-12 space-y-8 animate-fadeIn">
+                         {/* ... Context and Query Inputs (unchanged structure) ... */}
+                          <div>
                             <label htmlFor="context-input" className="flex items-center text-lg font-semibold text-slate-100 mb-3"> <DocumentTextIcon />1. Describe the Situation (Context) </label>
                             <textarea id="context-input" className="w-full p-4 text-base border border-slate-300 rounded-xl shadow-sm resize-vertical min-h-[200px] outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition duration-150 ease-in-out bg-slate-100 text-slate-900 placeholder-slate-500" placeholder="Paste relevant chat logs or describe the events in detail..." value={context} onChange={(e) => setContext(e.target.value)} rows={10} />
                             <p className="text-xs text-slate-400 mt-2 pl-1">More detail provides more accurate analysis.</p>
                         </div>
-                        {/* Query Section */}
                         <div>
                             <label htmlFor="query-select" className="flex items-center text-lg font-semibold text-slate-100 mb-3"> <ChatBubbleLeftEllipsisIcon/>2. What is Your Specific Question? </label>
                             <select id="query-select" value={selectedQueryOption} onChange={handleQueryOptionChange} className="w-full p-4 text-base border border-slate-300 rounded-xl shadow-sm outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition duration-150 ease-in-out bg-slate-100 text-slate-900 placeholder-slate-500 appearance-none cursor-pointer" >
@@ -446,22 +373,21 @@ export default function Home() {
                                 <div className="mt-4"> <input id="custom-query-input" type="text" className="w-full p-4 text-base border border-slate-300 rounded-xl shadow-sm outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition duration-150 ease-in-out bg-slate-100 text-slate-900 placeholder-slate-500" placeholder="Enter your specific question here..." value={customQuery} onChange={handleCustomQueryChange} /> </div>
                             )}
                         </div>
-                        {/* Input Error Display */}
-                        {error && <div className="pt-2"><Alert type="error" title="Input Error" message={error} /></div>}
-                        {/* Submit Button (Triggers Step 1) */}
-                        <div className="text-center pt-6">
-                            <button onClick={handleInitialSubmit} disabled={isLoadingQuestions || isLoadingAnalysis} className={`inline-flex items-center justify-center px-12 py-3.5 border border-transparent text-base font-semibold rounded-full shadow-lg text-white transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 focus:ring-offset-slate-800 transform hover:scale-105 active:scale-100 ${ (isLoadingQuestions || isLoadingAnalysis) ? 'bg-gray-500 cursor-not-allowed opacity-70' : 'bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700'}`}>
-                                {(isLoadingQuestions || isLoadingAnalysis) ? ( <> <LoadingSpinner /> <span className="ml-3">Processing...</span> </> ) : ( <> <SparklesIcon className="w-5 h-5 mr-2"/> Get Objective Analysis</> )}
-                            </button>
-                        </div>
+                         {error && currentStep === 'initialInput' && <div className="pt-2"><Alert type="error" title="Input Error" message={error} /></div>}
+                         <div className="text-center pt-6">
+                             <button onClick={handleInitialSubmit} disabled={isLoadingQuestions || isLoadingAnalysis} className={`inline-flex items-center justify-center px-12 py-3.5 border border-transparent text-base font-semibold rounded-full shadow-lg text-white transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 focus:ring-offset-slate-800 transform hover:scale-105 active:scale-100 ${ (isLoadingQuestions || isLoadingAnalysis) ? 'bg-gray-500 cursor-not-allowed opacity-70' : 'bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700'}`}>
+                                 {(isLoadingQuestions || isLoadingAnalysis) ? ( <> <LoadingSpinner /> <span className="ml-3">Processing...</span> </> ) : ( <> <SparklesIcon className="w-5 h-5 mr-2"/> Get Objective Analysis</> )}
+                             </button>
+                         </div>
                     </div>
                 )}
 
                 {/* Step 2: Show Optional Questions View */}
                 {currentStep === 'showQuestions' && (
-                    <div className="p-8 sm:p-10 lg:p-12 space-y-8 animate-fadeIn">
+                     <div className="p-8 sm:p-10 lg:p-12 space-y-8 animate-fadeIn">
                         <h2 className="text-2xl font-semibold text-slate-100 mb-4 text-center">Optional Clarifications</h2>
                         <p className="text-slate-400 text-center mb-8 max-w-xl mx-auto">Answering these might improve the analysis, but you can skip them.</p>
+                         {error && currentStep === 'showQuestions' && <div className="pt-2 max-w-xl mx-auto"><Alert type="warning" title="Note" message={error} /></div>}
                         <div className="space-y-6 max-w-xl mx-auto">
                             {generatedQuestions.map((q) => (
                                 <div key={q.id}>
@@ -470,13 +396,12 @@ export default function Home() {
                                 </div>
                             ))}
                         </div>
-                        {/* Display error from question generation step if any */}
-                        {error && <div className="pt-2 max-w-xl mx-auto"><Alert type="warning" title="Note" message={error} /></div>}
-                        {/* Buttons to Proceed (Trigger Step 2) */}
                         <div className="flex flex-col sm:flex-row justify-center items-center gap-4 pt-8">
+                            {/* Button triggers runFinalAnalysis with current state */}
                              <button onClick={() => runFinalAnalysis(initialContext, queryToSend, questionAnswers)} disabled={isLoadingAnalysis} className={`inline-flex items-center justify-center px-8 py-3 border border-transparent text-base font-semibold rounded-full shadow-lg text-white transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 focus:ring-offset-slate-800 transform hover:scale-105 active:scale-100 ${ isLoadingAnalysis ? 'bg-gray-500 cursor-not-allowed opacity-70' : 'bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700'}`}>
-                                {isLoadingAnalysis ? ( <> <LoadingSpinner /> <span className="ml-3">Analysing...</span> </> ) : ( <>Analyse Now {Object.values(questionAnswers).some(a => a && a.trim()) ? 'with Answers' : ''}</> )}
+                                {isLoadingAnalysis ? ( <> <LoadingSpinner /> <span className="ml-3">Analysing...</span> </> ) : ( <>Analyse Now {Object.values(questionAnswers).some(a => a?.trim()) ? 'with Answers' : ''}</> )}
                              </button>
+                            {/* Skip button triggers runFinalAnalysis with empty answers */}
                              <button onClick={() => runFinalAnalysis(initialContext, queryToSend, {})} disabled={isLoadingAnalysis} className="text-sm text-slate-400 hover:text-slate-200 transition duration-150 ease-in-out underline">
                                  Skip & Analyse Without Answers
                              </button>
@@ -487,26 +412,29 @@ export default function Home() {
                 {/* Step 3: Results View */}
                 {currentStep === 'showResults' && (
                     <div className="bg-transparent px-6 md:px-10 py-10 border-t border-slate-700/40 animate-fadeIn">
-                        {/* Display final error message if analysis failed */}
-                        {error && ( <div className="mb-10 max-w-3xl mx-auto"> <Alert type={error.toLowerCase().includes("incomplete") || error.toLowerCase().includes("partially") || error.toLowerCase().includes("failed") || error.toLowerCase().includes("issue") || error.toLowerCase().includes("skipped") || error.toLowerCase().includes("generate") ? "warning" : "error"} title={error.toLowerCase().includes("incomplete") || error.toLowerCase().includes("partially") ? "Analysis Note" : (error.toLowerCase().includes("failed") || error.toLowerCase().includes("issue") || error.toLowerCase().includes("generate") || error.toLowerCase().includes("skipped") ? "Analysis Issue" : "Error")} message={error} /> </div> )}
-                        {/* Results Sections Container - Render even if there was a partial error */}
-                        {(responses.length > 0 || summary || paraphrase || error) && hasAnalyzed ? ( // Check hasAnalyzed to prevent rendering empty structure on initial load error
+                        {/* Display final error message */}
+                        {error && ( <div className="mb-10 max-w-3xl mx-auto"> <Alert type="warning" title="Analysis Note / Error" message={error} /> </div> )}
+
+                        {/* Render results sections IF analysis was attempted and wasn't a complete critical failure */}
+                        {hasAnalyzed ? (
                              <div className='space-y-10 md:space-y-12'>
                                 {/* Paraphrase Section */}
                                 {paraphrase && !paraphrase.startsWith("[") && ( <div className="max-w-3xl mx-auto text-center"> <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">Your Situation Summary</h3> <blockquote className="text-base italic text-slate-800 bg-slate-100 p-4 rounded-lg border border-slate-300 shadow"> "{paraphrase}" </blockquote> </div> )}
-                                {paraphrase && paraphrase.startsWith("[") && (!error || !error.toLowerCase().includes('paraphrase')) && ( <div className="max-w-3xl mx-auto"> <Alert type="warning" title="Context Summary Issue" message="Could not generate situation summary." /> </div> )}
+                                {paraphrase && paraphrase.startsWith("[") && ( <div className="max-w-3xl mx-auto"> <Alert type="warning" title="Context Summary Issue" message="Could not generate situation summary." /> </div> )}
                                 {/* Verdict Section */}
                                 {summary && !summary.startsWith("[") && ( <div className="border-t border-slate-700/40 pt-10 md:pt-12"> <h2 className="text-2xl md:text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-teal-300 to-cyan-400 mb-6 text-center tracking-tight">The Quick Verdict</h2> <div className="bg-white text-slate-900 rounded-xl p-6 shadow-lg max-w-3xl mx-auto border border-slate-300"> <MarkdownRenderer content={summary} className="prose-sm" isDark={false} /> </div> </div> )}
-                                {summary && summary.startsWith("[") && (!error || !error.toLowerCase().includes('summary')) && ( <div className="max-w-3xl mx-auto"> <Alert type="warning" title="Verdict Issue" message="Could not generate the final verdict summary." /> </div> )}
-                                {/* Detailed Perspectives Section */}
+                                {summary && summary.startsWith("[") && ( <div className="max-w-3xl mx-auto"> <Alert type="warning" title="Verdict Issue" message="Could not generate the final verdict summary." /> </div> )}
+                                {/* Detailed Perspectives Section - Only show if there are valid responses */}
                                 {responses.some(r => r.response && !r.response.startsWith("[")) && (
                                     <div className="border-t border-slate-700/40 pt-10 md:pt-12">
                                         <h2 className="text-2xl md:text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-teal-300 to-cyan-400 mb-8 text-center tracking-tight">Detailed Analysis Perspectives</h2>
+                                        {/* Persona Buttons */}
                                         <div className="flex justify-center flex-wrap gap-3 sm:gap-4 mb-10 border-b border-slate-700/40 pb-6">
                                              {responses.map((r) => ( r.response && !r.response.startsWith("[") && <button key={r.persona} onClick={() => handleSelectPersona(r.persona)} className={`px-5 py-2 text-sm font-medium rounded-full transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2 focus:ring-offset-slate-800 whitespace-nowrap transform hover:scale-103 active:scale-100 ${ selectedPersona === r.persona ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-lg ring-2 ring-offset-1 ring-cyan-400 scale-105' : 'text-slate-200 bg-slate-700/40 hover:bg-slate-600/60 border border-slate-600/60' }`} > {r.persona.split('(')[0].trim()} </button> ))}
                                          </div>
+                                         {/* Detailed Response View - Guarded access */}
                                         <div ref={detailViewRef} className={`transition-opacity duration-150 ease-in-out`} style={{ opacity: isSwitchingPersona ? 0 : 1 }}>
-                                            {selectedResponse && !selectedResponse.response.startsWith("[") && (
+                                            {selectedPersona && selectedResponse && !selectedResponse.response.startsWith("[") && ( // Check selectedPersona AND selectedResponse here
                                                 <div key={selectedPersona} className="bg-white text-slate-900 rounded-2xl p-6 md:p-8 shadow-xl border border-slate-300 max-w-3xl mx-auto mb-10">
                                                     <h3 className="text-xl font-semibold text-slate-800 mb-5">{selectedResponse.persona}</h3>
                                                     <div className="text-[15px] leading-relaxed space-y-4">
@@ -514,25 +442,26 @@ export default function Home() {
                                                     </div>
                                                 </div>
                                             )}
-                                            {!selectedResponse && responses.some(r => r.response && !r.response.startsWith("[")) && ( <div className="text-center text-slate-500 italic mt-4">Select a perspective above to view details.</div> )}
+                                             {/* Show prompt only if responses exist but none selected */}
+                                             {selectedPersona === null && responses.some(r => r.response && !r.response.startsWith("[")) && (
+                                                 <div className="text-center text-slate-500 italic mt-4">Select a perspective above to view details.</div>
+                                             )}
                                          </div>
                                     </div>
                                 )}
                                 {/* Fallback message if analysis ran but yielded nothing valid AND no error message exists */}
                                 {!summary && !responses.some(r => r.response && !r.response.startsWith("[")) && !error && hasAnalyzed && ( <div className="text-center text-slate-400 py-10"> No analysis could be generated for this input. Please try rephrasing your situation or question. </div> )}
                             </div>
-                        ) : null} {/* End results container conditional rendering */}
+                        ) : (
+                            // Show if analysis wasn't even attempted or failed critically before results stage
+                             !error && <div className="text-center text-slate-400 py-10"> Analysis could not be performed. Please try again. </div>
+                        )}
 
                         {/* Restart Button - Always show in results view */}
                         <div className="mt-12 text-center border-t border-slate-700/40 pt-10 md:pt-12">
                             <button onClick={handleRestart} className="inline-flex items-center justify-center px-10 py-3 border border-slate-600/60 text-base font-medium rounded-xl shadow-sm text-slate-200 bg-slate-700/40 hover:bg-slate-600/60 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 focus:ring-offset-slate-800 transition duration-150 ease-in-out transform hover:scale-103 active:scale-100" > Analyse Another Situation </button>
                         </div>
                     </div>
-                )}
-
-                 {/* Fallback for truly invalid state (should not happen) */}
-                {currentStep !== 'initialInput' && currentStep !== 'loadingQuestions' && currentStep !== 'showQuestions' && currentStep !== 'loadingAnalysis' && currentStep !== 'showResults' && (
-                    <div className="p-12 text-center text-red-400">Internal application error: Invalid view state. Current step: {currentStep}</div>
                 )}
             </div>
 

@@ -1,9 +1,14 @@
 // FILE: src/app/api/getResponses/route.js
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY);
+// Ensure correct API key handling
+const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+if (!apiKey) {
+    console.error("CRITICAL: API Key for GoogleGenerativeAI is missing in environment variables.");
+}
+const genAI = new GoogleGenerativeAI(apiKey);
 
-// --- ROBUST Helper function to clean API response text ---
+// --- Helper function to clean API response text ---
 function cleanApiResponseText(text) {
     if (!text || typeof text !== 'string') return '';
     let cleaned = text;
@@ -11,8 +16,13 @@ function cleanApiResponseText(text) {
     cleaned = cleaned.replace(/^\s*```/, '');
     cleaned = cleaned.replace(/```\s*$/, '');
     cleaned = cleaned.trim();
-    cleaned = cleaned.replace(/^[\s,'"\[{(–—*>#:;\.`\-\*]+/, '');
-    cleaned = cleaned.replace(/[\s,'"\]})–—>`:;]+$/, ''); // Removed '\.' and '\*'
+    // Relaxed leading character removal
+    cleaned = cleaned.replace(/^[\s,'"[{(–—*>#:;`\-*]+/, (match) => {
+         // Keep essential punctuation if it's likely part of the text
+        return /^[("']/.test(match.slice(-1)) ? match.slice(0, -1) : '';
+    });
+    // Relaxed trailing character removal
+    cleaned = cleaned.replace(/[\s,'")\]}–—>`:;]+$/, ''); // Keep trailing periods, question marks, exclamation points, asterisks
     if (cleaned.startsWith('"') && cleaned.endsWith('"')) {
         try {
             const parsed = JSON.parse(cleaned);
@@ -24,50 +34,19 @@ function cleanApiResponseText(text) {
     return cleaned.trim();
 }
 
-
-// --- PERSONA PROMPTS (v5.5 - Added placeholder for Optional Answers) ---
+// --- PERSONA PROMPTS (v5.6 - Refined prompts) ---
 const personas = [
     {
         name: "Therapist (Interaction Dynamics)",
-        prompt: `
-You are an objective psychotherapist analysing interaction dynamics described in the context. **Strictly adhere to British English spelling, grammar, and phrasing.** Address 'you' directly. Use paragraph breaks (two newlines: '\\n\\n') for readability, **bold text using double asterisks** for key insights, and lists *only if absolutely essential* for clarity. Be **concise**.
-**Lead with your assessment of the core psychological dynamic at play in the situation.**
-Based *exclusively* on the provided context, the user's query, and any optional clarifications provided:
-*   Identify the **primary psychological conflict** evident. **Validate objective concerns** first if applicable.
-\n\n
-*   Briefly analyse the likely **emotional drivers and assumptions** for **both** parties shown.
-\n\n
-*   Identify the main **communication breakdown** and **negative feedback loop**.
-\n\n
-*   Briefly reflect on any **apparent biases** evident in *your description*.
-        `
+        prompt: `You are an objective psychotherapist using **British English**. Address 'you'. Analyse the interaction dynamics in the context, considering the user's query and any clarifications. Use paragraphs (\\n\\n) and **bold** key insights. Be concise.\n**Core psychological dynamic:** Identify the main conflict.\n**Emotional Drivers/Assumptions:** Briefly analyse both parties.\n**Communication Breakdown:** Identify the main issue/loop.\n**Biases:** Briefly note potential biases in *your* analysis.`
     },
     {
         name: "Analyst (Logical Assessment)",
-        prompt: `
-You are a ruthless logical analyst. **Strictly adhere to British English spelling, grammar, and phrasing.** Address 'you' directly. Use paragraph breaks (two newlines: '\\n\\n') and **bold text using double asterisks** for key terms/conclusions. **Be extremely concise and definitive.** NO hedging.
-
-**Immediately state your definitive conclusion (Yes/No/Partially) to the user's query, considering the context and any clarifications.**
-
-Then, justify this by assessing the logic: Identify any **Unsupported assumptions**. State the **Primary trigger**. Assess the **Proportionality** of the reaction. Evaluate the **Effectiveness** of your described reaction.
-
-Finally, reiterate your **Conclusion (Yes/No/Partially)**, summarising the core logical reason. **Avoid numbered lists**; use flowing paragraphs separated by '\\n\\n'.
-        `
+        prompt: `You are a logical analyst using **British English**. Address 'you'. Use paragraphs (\\n\\n) and **bold** key terms. Be concise and definitive.\n**Conclusion:** Immediately state Yes/No/Partially to the user's query, considering context and clarifications.\n**Justification:** Identify **Unsupported assumptions**, **Primary trigger**, **Proportionality** of reaction, **Effectiveness** of actions.\n**Reiterate Conclusion:** Briefly state Yes/No/Partially with the core logical reason.`
     },
     {
         name: "Coach (Strategic Action)",
-        prompt: `
-You are a results-oriented strategic coach. **Strictly adhere to British English spelling, grammar, and phrasing.** Address 'you' directly. Use paragraph breaks (two newlines: '\\n\\n') and **bold text using double asterisks** for key actions/wording. Use plain language. **Be concise.**
-**Lead with your assessment of the current strategy's effectiveness, considering the context, query and any clarifications.**
-*   State if current actions are **'effective'** or **'ineffective/counterproductive'**.
-\n\n
-*   Clearly state the **most critical strategic objective** now.
-\n\n
-*   Provide the **most strategically advantageous** action plan as a series of clear steps using distinct paragraphs separated by '\\n\\n'. Use **bold text (double asterisks)** for key actions or suggested phrasing. **CRITICAL: Do NOT use numbered lists (1, 2, 3) or bullet points (-). Use PARAGRAPHS ONLY, separated by '\\n\\n'.**
-\n\n
-*   Address the query's *underlying goal*: Explain why this action plan is **strategically superior**.
-Focus ruthlessly on the best possible outcome.
-        `
+        prompt: `You are a strategic coach using **British English**. Address 'you'. Use paragraphs (\\n\\n) and **bold** key actions/phrasing. Use plain language. Be concise.\n**Current Strategy:** Assess effectiveness (effective/ineffective).\n**Objective:** State the critical strategic goal now.\n**Action Plan:** Provide clear steps in **separate paragraphs** (NO LISTS/BULLETS). Use **bold** for actions/phrasing.\n**Superiority:** Explain why this plan is strategically better for the underlying goal.`
     },
 ];
 
@@ -77,147 +56,142 @@ function formatOptionalAnswers(answers) {
         return "No optional clarifications provided.";
     }
     const formatted = Object.entries(answers)
-        .filter(([_, value]) => typeof value === 'string' && value.trim()) // Only include non-empty answers
-        .map(([key, value], index) => `Clarification ${index + 1} (for question ID ${key}): ${value.trim()}`) // Include ID for context if needed
+        .filter(([_, value]) => typeof value === 'string' && value.trim())
+        .map(([key, value], index) => `Clarification ${index + 1}: ${value.trim()}`)
         .join('\n');
-    return formatted || "No optional clarifications provided."; // Handle case where all answers were empty strings
+    return formatted || "No optional clarifications provided.";
 }
 
 
 export async function POST(request) {
+    // Ensure API key is available
+    if (!apiKey) {
+        console.error("GETRESPONSES: Missing API Key.");
+        return Response.json({ error: "Server configuration error: API key missing." }, { status: 500 });
+    }
+
     let requestBody;
     try {
         requestBody = await request.json();
     } catch (e) {
         console.error("GETRESPONSES Error parsing request body:", e);
-        return new Response(JSON.stringify({ error: "Invalid request format. Ensure you are sending valid JSON." }), { status: 400, headers: { 'Content-Type': 'application/json' } });
+        return Response.json({ error: "Invalid request format." }, { status: 400 });
     }
-    // *** Destructure context, query, AND answers ***
     const { context, query, answers } = requestBody;
 
-    console.log("GETRESPONSES RECEIVED - Context Length:", context?.length);
-    console.log("GETRESPONSES RECEIVED - Query:", query);
-    console.log("GETRESPONSES RECEIVED - Answers Type:", typeof answers, "Keys:", answers ? Object.keys(answers) : 'N/A');
+    console.log("GETRESPONSES RECEIVED - Context:", context?.length, "Query:", query, "Answers:", answers ? Object.keys(answers).length : 0);
 
-    // --- Input Validation ---
-    if (!context || typeof context !== 'string' || context.trim().length < 10) {
-        console.warn("GETRESPONSES Validation failed: Context insufficient.");
-        return new Response(JSON.stringify({ error: "Context description required (min 10 chars)." }), { status: 400, headers: { 'Content-Type': 'application/json' } });
-    }
-    if (!query || typeof query !== 'string' || query.trim().length < 5) {
-       console.warn("GETRESPONSES Validation failed: Query insufficient.");
-       return new Response(JSON.stringify({ error: "Specific query/worry required (min 5 chars)." }), { status: 400, headers: { 'Content-Type': 'application/json' } });
-    }
+    if (!context || typeof context !== 'string' || context.trim().length < 10) { /* ... validation ... */ return Response.json({ error: "Context required (min 10 chars)." }, { status: 400 }); }
+    if (!query || typeof query !== 'string' || query.trim().length < 5) { /* ... validation ... */ return Response.json({ error: "Query required (min 5 chars)." }, { status: 400 }); }
 
-    // --- API Key Check ---
-    if (!process.env.GEMINI_API_KEY && !process.env.GOOGLE_API_KEY) {
-         console.error("GETRESPONSES API Key Error: Env var missing.");
-         return new Response(JSON.stringify({ error: "Server configuration error: API key missing." }), { status: 500, headers: { 'Content-Type': 'application/json' } });
-    }
-
-    // --- Model and Config ---
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" }); // Use flash model
-    // Increased token limits slightly for more complex potential outputs
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
     const generationConfig = { temperature: 0.6, maxOutputTokens: 900 };
     const summaryGenerationConfig = { temperature: 0.6, maxOutputTokens: 450 };
     const paraphraseGenerationConfig = { temperature: 0.6, maxOutputTokens: 100 };
 
+    let accumulatedErrorMessage = null; // Store errors encountered
 
-    // === Generate Paraphrase (Only uses context) ===
+    // === Generate Paraphrase ===
     console.log("\n--- GETRESPONSES: Generating Paraphrase ---");
     const paraphrasePrompt = `You are an expert summariser using **British English**. Read the context. Paraphrase the absolute core essence **from the user's perspective** in **one single, concise sentence** (max 30 words). Focus on the central conflict/circumstances. No analysis/opinion. Use British English. Context: """${context}""" Your one-sentence paraphrase:`;
-    let paraphraseText = "[Paraphrase generation failed]";
+    let paraphraseText = "[Paraphrase generation failed]"; // Default error state
     try {
         const paraphraseResult = await model.generateContent(paraphrasePrompt, paraphraseGenerationConfig);
         const paraphraseResponse = await paraphraseResult.response;
-        const rawParaphrase = paraphraseResponse.text ? paraphraseResponse.text() : '';
+        if (!paraphraseResponse) throw new Error("No response for paraphrase.");
+        const rawParaphrase = paraphraseResponse.candidates?.[0]?.content?.parts?.[0]?.text || '';
         paraphraseText = cleanApiResponseText(rawParaphrase);
-         if (!paraphraseText || paraphraseText.startsWith("[")) { paraphraseText = "[Paraphrase generation failed]"; console.warn("Paraphrase generation failed or empty."); }
-         else if (paraphraseText.split(' ').length > 35) { console.warn("Paraphrase exceeded length constraint."); }
+        if (!paraphraseText || paraphraseText.startsWith("[")) { paraphraseText = "[Paraphrase could not be generated reliably]"; console.warn("Paraphrase generation failed or empty."); }
+        else if (paraphraseText.split(' ').length > 35) { console.warn("Paraphrase exceeded length constraint."); }
          console.log("GETRESPONSES Cleaned Paraphrase:", JSON.stringify(paraphraseText));
-    } catch (error) { /* ... (error handling as before) ... */ paraphraseText = `[Paraphrase Error: ${error.message?.substring(0,50) || 'Unknown'}]`; console.error("Paraphrase error", error); }
+    } catch (error) {
+        const errorMsg = `Paraphrase Error: ${error.message?.substring(0,50) || 'Unknown'}`;
+        paraphraseText = `[${errorMsg}]`;
+        accumulatedErrorMessage = errorMsg;
+        console.error("Paraphrase error:", error);
+    }
 
 
-    // === Generate Persona Responses (Includes answers) ===
-    const formattedAnswers = formatOptionalAnswers(answers); // Format the answers once
+    // === Generate Persona Responses ===
+    const formattedAnswers = formatOptionalAnswers(answers);
     const personaPromises = personas.map(async ({ name, prompt }) => {
         console.log(`\n--- GETRESPONSES: Constructing ${name} Prompt ---`);
-        const fullPrompt = `${prompt}\n\n---\nContext Provided:\n"""${context}"""\n\n---\nUser's Specific Query/Worry about this Context:\n"${query}"\n\n---\nOptional Clarifications Provided by User:\n"""\n${formattedAnswers}\n"""\n---\n\nYour direct, concise, analytical response (approx 100-150 words, using \\n\\n for paragraphs and **bold text**):`;
-        console.log(`--- FINAL ${name} Prompt being sent (first 400 chars): --- ${fullPrompt.substring(0, 400)}...\n`);
+        const fullPrompt = `${prompt}\n\n---\nContext Provided:\n"""${context}"""\n\n---\nUser's Specific Query/Worry:\n"${query}"\n\n---\nOptional Clarifications Provided:\n"""\n${formattedAnswers}\n"""\n---\n\nYour direct, concise response (using \\n\\n for paragraphs, **bold**):`;
+        console.log(`--- FINAL ${name} Prompt (first 400): ${fullPrompt.substring(0, 400)}...`);
         try {
             const result = await model.generateContent(fullPrompt, generationConfig);
             const response = await result.response;
-            const rawText = response.text ? response.text() : '';
+            if (!response) throw new Error(`No response for ${name}.`);
+            const rawText = response.candidates?.[0]?.content?.parts?.[0]?.text || '';
             let text = cleanApiResponseText(rawText);
-            console.log(`GETRESPONSES Cleaned ${name} Response (first 100):`, JSON.stringify(text.substring(0,100))+"...");
-            // Post-cleaning checks (unchanged)
-            if (name.includes("Coach") && /^\s*[1-9]+\.\s+/m.test(text)) { /* ... (list cleanup) ... */ }
-            if (!text || text.length < 10) { return { persona: name, response: "[Analysis Error: Empty response received]" }; }
-            if (/\b(analyze|behavior|color|center|realize|optimize)\b/i.test(text)) { /* ... (US spelling warn) ... */ }
+            console.log(`GETRESPONSES Cleaned ${name} (first 100):`, JSON.stringify(text.substring(0,100))+"...");
+            if (!text || text.length < 10) { text = `[Analysis Error for ${name}: Empty response received]`; }
+            // Post-cleaning checks can remain if needed
             return { persona: name, response: text };
-        } catch (error) { /* ... (error handling as before) ... */
-            let personaError = `[Analysis Error: ${error.message?.substring(0,50) || 'Unknown'}]`;
-            if (error.message?.includes("SAFETY")) { personaError = "[Analysis Error: Content blocked by safety filter]"; }
-            console.error(`Persona ${name} error`, error);
-            return { persona: name, response: personaError };
+        } catch (error) {
+             let personaError = `Analysis Error (${name}): ${error.message?.substring(0,50) || 'Unknown'}`;
+             if (error.message?.includes("SAFETY")) { personaError = `[Analysis Error (${name}): Content blocked]`; }
+             console.error(`Persona ${name} error:`, error);
+             return { persona: name, response: `[${personaError}]` };
         }
     });
     const responses = await Promise.all(personaPromises);
-    const validResponses = responses.filter(r => r.response && !r.response.startsWith("["));
+    const validResponses = responses.filter(r => r.response && !r.response.startsWith("[")); // Filter out error responses
 
-    // --- Error Message Aggregation ---
-    let accumulatedErrorMessage = null;
-    const errorMessagesSet = new Set(
-        responses.map(r => r.response)
-                 .filter(r => r && r.startsWith("["))
-                 .map(e => e.replace(/^\[|\]$/g, '')) // Clean error messages
-    );
-    if (paraphraseText.startsWith("[")) { errorMessagesSet.add(paraphraseText.replace(/^\[|\]$/g, '')); }
-    if (errorMessagesSet.size > 0) { accumulatedErrorMessage = `Analysis generated with issues: ${[...errorMessagesSet].join('; ')}`; }
-    if (validResponses.length === 0) { accumulatedErrorMessage = accumulatedErrorMessage ? `Analysis failed. ${accumulatedErrorMessage}` : "Analysis failed: Could not generate insights from any perspective."; }
+    // Aggregate errors from personas
+    const personaErrors = responses
+        .map(r => r.response)
+        .filter(r => r && r.startsWith("["))
+        .map(e => e.replace(/^\[|\]$/g, '')); // Clean brackets
+    if (personaErrors.length > 0) {
+        accumulatedErrorMessage = `${accumulatedErrorMessage ? accumulatedErrorMessage + '; ' : ''}Issues: ${[...new Set(personaErrors)].join('; ')}`;
+    }
 
 
-    // === Generate Summary (Relies on valid persona responses) ===
-    let summaryText = "[Summary generation failed]";
-    if (validResponses.length > 0) {
+    // === Generate Summary ===
+    let summaryText = "[Summary generation failed]"; // Default error state
+    if (validResponses.length > 0) { // Only attempt if there are valid perspectives
          console.log(`\n--- GETRESPONSES: Constructing Summary Prompt (${validResponses.length} valid responses) ---`);
-         const summaryPrompt = `Based *only* on the analyses provided below, synthesize their critical conclusions into a unified verdict regarding the user's query about the context. Address 'you' directly. Use **plain British English**. Be direct, definitive, helpful. Use paragraph breaks (\\n\\n). **Emphasise key findings/actions using double asterisks.** Target 90-120 words. **CRITICAL:** NO persona names, NO meta-talk about summarizing, NO greetings. Start directly with the synthesized verdict. Analyses Provided for Synthesis:\n${validResponses.map(r => `### ${r.persona}\n${r.response}`).join('\n\n')}\n\n---\nYour Synthesized Verdict:`;
-         console.log(`--- FINAL Summary Prompt being sent (first 500 chars): --- ${summaryPrompt.substring(0, 500)}...\n`);
+         // Refined Summary Prompt: Explicitly tell it *not* to use forbidden patterns
+         const summaryPrompt = `Synthesize the critical conclusions from the analyses below regarding the user's query. Address 'you'. Use **plain British English**. Be direct, definitive, helpful. Use paragraphs (\\n\\n) and **bold**. Target 90-120 words. **CRITICAL INSTRUCTIONS:** DO NOT mention "therapist", "analyst", "coach", "synthesis", "template", "summarize". DO NOT start with "Okay, I understand", "Here's a summary", "Based on the analyses", "In summary,". Start directly with the synthesized verdict. Analyses Provided:\n${validResponses.map(r => `### ${r.persona}\n${r.response}`).join('\n\n')}\n\n---\nYour Synthesized Verdict (following all instructions):`;
+         console.log(`--- FINAL Summary Prompt (first 500): ${summaryPrompt.substring(0, 500)}...`);
          try {
             const summaryResult = await model.generateContent(summaryPrompt, summaryGenerationConfig);
             const summaryResponse = await summaryResult.response;
-            const rawSummary = summaryResponse.text ? summaryResponse.text() : '';
+            if (!summaryResponse) throw new Error("No response for summary.");
+            const rawSummary = summaryResponse.candidates?.[0]?.content?.parts?.[0]?.text || '';
             summaryText = cleanApiResponseText(rawSummary);
-            // Validation checks (unchanged)
-            const lowerCaseSummary = summaryText.toLowerCase();
-            const forbiddenWords = ["therapist", "analyst", "coach", "synthesis", "template", "summarize", "summary template"];
-            const forbiddenStarts = ["okay, i understand", "here's a summary", "based on the analyses", "in summary,"];
-            if (!summaryText || summaryText.length < 20 || summaryText.length > 1000 || summaryText.startsWith("[") || forbiddenWords.some(word => lowerCaseSummary.includes(word)) || forbiddenStarts.some(start => lowerCaseSummary.startsWith(start))) {
-                 const failureReason = summaryText && summaryText.startsWith("[") ? summaryText : "[Summary generation failed - invalid content received]";
-                 summaryText = failureReason;
-                 console.warn("Summary generation failed validation:", summaryText);
-                 if (!accumulatedErrorMessage?.includes("Summary generation failed")) { accumulatedErrorMessage = `${accumulatedErrorMessage ? accumulatedErrorMessage + '; ' : ''}${failureReason.replace(/^\[|\]$/g, '')}`; }
+            // Simplified Validation: Check if it's still the error state or too short. More complex checks were problematic.
+            if (!summaryText || summaryText.startsWith("[")) {
+                 summaryText = "[Summary could not be generated reliably]";
+                 console.warn("Summary generation failed or empty.");
+                 accumulatedErrorMessage = `${accumulatedErrorMessage ? accumulatedErrorMessage + '; ' : ''}Summary generation failed.`;
+            } else if (summaryText.length < 15) {
+                 summaryText = "[Summary generated was too short to be useful]";
+                 console.warn("Summary too short.");
+                 accumulatedErrorMessage = `${accumulatedErrorMessage ? accumulatedErrorMessage + '; ' : ''}Summary too short.`;
             }
-            if (summaryText && /\b(analyze|behavior|color|center|realize|optimize)\b/i.test(summaryText)) { /* ... (US spelling warn) ... */ }
             console.log("GETRESPONSES Cleaned Summary:", JSON.stringify(summaryText));
-         } catch (error) { /* ... (error handling as before) ... */
-             summaryText = `[Summary generation failed: ${error.message?.substring(0,50) || 'Unknown'}]`;
-             console.error("Summary error", error);
-             if (!accumulatedErrorMessage?.includes("Summary generation failed")) { accumulatedErrorMessage = `${accumulatedErrorMessage ? accumulatedErrorMessage + '; ' : ''}${summaryText.replace(/^\[|\]$/g, '')}`; }
+         } catch (error) {
+             const errorMsg = `Summary Error: ${error.message?.substring(0,50) || 'Unknown'}`;
+             summaryText = `[${errorMsg}]`;
+             accumulatedErrorMessage = `${accumulatedErrorMessage ? accumulatedErrorMessage + '; ' : ''}${errorMsg}`;
+             console.error("Summary error:", error);
          }
     } else if (!accumulatedErrorMessage) {
-         // Only add this message if no other errors were recorded
-         accumulatedErrorMessage = "Summary skipped: No valid analysis perspectives were generated.";
-         summaryText = `[${accumulatedErrorMessage}]`;
+        // Only add this message if no other errors were recorded and no valid responses
+        accumulatedErrorMessage = "Summary skipped: No valid analysis perspectives were generated.";
+        summaryText = `[${accumulatedErrorMessage}]`;
     }
 
+
     // --- Final Response ---
-    console.log("GETRESPONSES Returning final response to frontend:", { error: accumulatedErrorMessage, summary: summaryText.substring(0,50)+"...", paraphrase: paraphraseText.substring(0,50)+"...", responsesCount: validResponses.length });
-    // Use 200 OK even if there are partial errors, let frontend display them
-    return new Response(JSON.stringify({
-        responses: validResponses,
+    console.log("GETRESPONSES Returning final response:", { error: accumulatedErrorMessage, summary: summaryText.substring(0,50)+"...", paraphrase: paraphraseText.substring(0,50)+"...", responsesCount: validResponses.length });
+    // Return 200 OK, include accumulated errors in the payload
+    return Response.json({
+        responses: responses, // Send ALL responses (including errors) so frontend can see issues
         summary: summaryText,
         paraphrase: paraphraseText,
-        error: accumulatedErrorMessage // Send accumulated errors/warnings
-    }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+        error: accumulatedErrorMessage // Consolidated error string
+    });
 }
