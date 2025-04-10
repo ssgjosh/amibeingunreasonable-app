@@ -11,7 +11,7 @@ const LoadingSpinner = () => (
     </svg>
 );
 
-// Alert component - Modified to render plain text error message
+// Alert component - Renders plain text message
 const Alert = ({ type = 'error', title, message }) => {
     const colors = {
         error: 'bg-red-900/40 border-red-600/70 text-red-200',
@@ -21,34 +21,31 @@ const Alert = ({ type = 'error', title, message }) => {
     return (
         <div className={`border-l-4 p-4 rounded-lg shadow-sm ${colors[type]}`} role="alert">
             {title && <p className="font-bold mb-1">{title}</p>}
-            <p>{displayMessage}</p> {/* Render message directly */}
+            <p>{displayMessage}</p>
         </div>
     );
 };
 
-// --- MarkdownRenderer (Handles light/dark text based on isDark prop) ---
+// MarkdownRenderer (Handles light/dark based on container)
 const MarkdownRenderer = ({ content, className = "", isDark = false }) => {
     const baseProseClass = "prose prose-sm max-w-none";
-    // Theme selection based on isDark prop
-    const themeProseClass = isDark ? "prose-invert" : ""; // prose-invert for dark bg, default for light bg
-    // Specific text styling adjustments based on theme
+    const themeProseClass = isDark ? "prose-invert" : "";
     const textStyles = isDark
-        ? "prose-p:text-slate-200 prose-strong:text-white prose-a:text-cyan-400 hover:prose-a:text-cyan-300 prose-blockquote:text-slate-300 prose-blockquote:border-slate-600 prose-code:text-pink-300 prose-headings:text-slate-100 prose-ul:text-slate-200 prose-ol:text-slate-200 prose-li:text-slate-200" // Styles for DARK background
-        : "prose-p:text-slate-700 prose-strong:text-slate-900 prose-a:text-cyan-600 hover:prose-a:text-cyan-500 prose-blockquote:text-slate-600 prose-blockquote:border-slate-400 prose-code:text-pink-700 prose-headings:text-slate-800 prose-ul:text-slate-700 prose-ol:text-slate-700 prose-li:text-slate-700"; // Styles for LIGHT background
+        ? "prose-p:text-slate-200 prose-strong:text-white prose-a:text-cyan-400 hover:prose-a:text-cyan-300 prose-blockquote:text-slate-300 prose-blockquote:border-slate-600 prose-code:text-pink-300 prose-headings:text-slate-100 prose-ul:text-slate-200 prose-ol:text-slate-200 prose-li:text-slate-200" // Dark background styles
+        : "prose-p:text-slate-700 prose-strong:text-slate-900 prose-a:text-cyan-700 hover:prose-a:text-cyan-600 prose-blockquote:text-slate-600 prose-blockquote:border-slate-400 prose-code:text-pink-700 prose-headings:text-slate-800 prose-ul:text-slate-700 prose-ol:text-slate-700 prose-li:text-slate-700"; // Light background styles (increased contrast)
 
     return (
-        // Apply base, theme, specific text styles, and any additional className
         <div className={`${baseProseClass} ${themeProseClass} ${textStyles} ${className}`}>
             <ReactMarkdown
-                components={{ // Standard HTML tag overrides for styling
+                components={{
                     p: ({ node, ...props }) => <p className="mb-3 last:mb-0" {...props} />,
                     strong: ({ node, ...props }) => <strong className="font-semibold" {...props} />,
                     ul: ({ node, ...props }) => <ul className="list-disc list-inside mb-3 pl-1" {...props} />,
                     ol: ({ node, ...props }) => <ol className="list-decimal list-inside mb-3 pl-1" {...props} />,
                     li: ({ node, ...props }) => <li className="mb-1" {...props} />,
                     a: ({ node, ...props }) => <a className="font-medium underline" {...props} />,
-                    blockquote: ({ node, ...props }) => <blockquote className="italic border-l-4 pl-4 my-4" {...props} />, // Border color handled by prose-blockquote:border-* in textStyles
-                    code: ({ node, ...props }) => <code className={`px-1 py-0.5 rounded text-sm ${isDark ? 'bg-black/20' : 'bg-slate-200'}`} {...props} />, // Code bg depends on theme
+                    blockquote: ({ node, ...props }) => <blockquote className="italic border-l-4 pl-4 my-4" {...props} />,
+                    code: ({ node, ...props }) => <code className={`px-1 py-0.5 rounded text-sm ${isDark ? 'bg-black/20' : 'bg-slate-200'}`} {...props} />,
                 }}
             >
                 {content || ""}
@@ -57,10 +54,35 @@ const MarkdownRenderer = ({ content, className = "", isDark = false }) => {
     );
 };
 
-// --- LoadingScreen (Unchanged from v5.4) ---
+// *** UPDATED LoadingScreen Messages ***
 const LoadingScreen = ({ isApiComplete, isTakingLong }) => {
-    const regularLoadingMessages = [ "Recalibrating the Pompomposity Filter...", "Engaging the Sarcasm Subroutines...", "Cross-referencing with Beano annuals...", "Asking Jeeves (Legacy Mode)...", "Determining Correct Queueing Etiquette...", "Putting the kettle on (Priority Override)...", "Calculating Passive-Aggression Vectors...", "Deploying Stiff Upper Lip Algorithm...", "Checking for Appropriate Biscuit Selection...", "Reticulating Splines... with irony...", "Analysing Underlying Banter Potential...", "Running Diagnostic on the Reasonableness Engine...", "Buffering... Please hold the line...", "Optimising for Maximum Objectivity (and tea)...", "Purging Unnecessary Pleasantries...", "Compiling Strategic Tuts...", "Ensuring Proper Use of 'Right then'...", "Interrogating pixels for hidden meanings...", "Deploying swarm of nano-analysts...", "Consulting the Oracle (she's on tea break)...", "Running situation through 10,000 simulations...", "Checking for quantum entanglement in arguments...", "Asking a panel of 1,000 stoic philosophers...", "Applying Occam's Razor... and then adding complications...", "Measuring passive-aggression with lasers...", "Fact-checking your inner monologue...", "Triangulating emotional trajectories...", "Engaging the Department of Common Sense...", "Re-routing neural pathways for objectivity...", "Filtering out hyperbole...", "Polishing the Scales of Reasonableness...", "Initiating deep-contextual dive...", "Sequencing the argument genome...", "Translating subtext into plain English...", "Defragging emotional baggage...", "Booting up the Judgementatron 5000...", "Asking 'What would a sensible person do?'...", "Cross-examining underlying motives...", "Checking tea levels for optimal analysis...", "Scanning for logical fallacies (found some!)...", "Inflating the strategic thinking cap...", "Consulting ancient reasonableness scrolls...", "Warming up the perspective engine...", "Synchronising watches for action plan...", "Ensuring impartiality protocols are active...", "Running final sanity check...", "Preparing brutally honest assessment...", "Distilling wisdom from the chaos...", "Just double-checking the kettle *is* off..." ];
-    const longLoadingMessages = [ "Blimey, this is a tricky one! Rerouting through extra processors...", "Your situation's complexity requires advanced tea-leaf consultation...", "Deep thought required... Did you mention existential dread?", "Engaging the 'Are You *Sure*?' sub-system...", "Wow, deploying the heavy-duty analysis engine for this!", "Compiling extra sarcasm... I mean, *strategy*...", "This is taking longer than explaining offside. Bear with.", "Please wait, converting emotional nuance into binary...", "Hold on, asking the AI if *it* needs a therapist after this...", "Calculating reasonableness... results may vary based on biscuit availability.", ];
+    const regularLoadingMessages = [
+        "Aligning neural pathways...", "Reticulating splines...", "Calibrating quantum fluctuators...",
+        "Engaging cognitive filters...", "Defragmenting perspectives...", "Optimizing logic circuits...",
+        "Buffering analysis...", "Synthesizing viewpoints...", "Cross-referencing data streams...",
+        "Initializing context processors...", "Evaluating emotional vectors...", "Compiling situation report...",
+        "Integrating objective parameters...", "Running diagnostic subroutines...", "Accessing knowledge base...",
+        "Polling expert systems...", "Normalizing input data...", "Generating potential outcomes...",
+        "Calculating probability matrices...", "Querying relational database...", "Engaging reasoning engine...",
+        "Filtering subjective noise...", "Enhancing signal clarity...", "Booting up objectivity module...",
+        "Establishing secure connection to insight matrix...", "Pre-processing narrative flow...", "Checking for cognitive biases...",
+        "Allocating computational resources...", "Simulating alternative scenarios...", "Rendering preliminary assessment...",
+        "Verifying logical consistency...", "Decoding underlying assumptions...", "Measuring ambiguity levels...",
+        "Prioritizing key factors...", "Formulating core summary...", "Refining analytical framework...",
+        "Performing sanity checks...", "Cross-validating inputs...", "Finalizing interpretation sequence..."
+    ];
+    const longLoadingMessages = [
+        "Complex situation detected. Rerouting through advanced analysis cores...",
+        "High nuance levels require deeper processing. Please hold...",
+        "Engaging multi-threaded interpretation protocols...",
+        "This requires significant computational resources. Stand by...",
+        "Cross-correlating multiple dimensions of context...",
+        "Performing deep contextual dive. This might take a moment...",
+        "Wow, this is intricate! Deploying the heavy-duty analysis engine...",
+        "Elevated complexity detected. Consulting extended knowledge archives...",
+        "Running additional simulations to ensure accuracy...",
+        "Intensive analysis in progress. Thank you for your patience..."
+    ];
     const [loadingText, setLoadingText] = useState("Initiating analysis...");
     const [progress, setProgress] = useState(0);
     const progressIntervalRef = useRef(null);
@@ -71,17 +93,12 @@ const LoadingScreen = ({ isApiComplete, isTakingLong }) => {
         const startProgressSimulation = () => {
             if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
             progressIntervalRef.current = setInterval(() => {
-                setProgress(prev => {
-                    if (prev >= 95) { clearInterval(progressIntervalRef.current); return 95; }
-                    return Math.min(prev + 1, 95);
-                });
+                setProgress(prev => { if (prev >= 95) { clearInterval(progressIntervalRef.current); return 95; } return Math.min(prev + 1, 95); });
             }, 200);
         };
-        if (isApiComplete) {
-            if (progressIntervalRef.current) clearInterval(progressIntervalRef.current); setProgress(100);
-        } else if (isTakingLong) {
-             if (progressIntervalRef.current) clearInterval(progressIntervalRef.current); setProgress(prev => Math.max(prev, 90));
-        } else { startProgressSimulation(); }
+        if (isApiComplete) { if (progressIntervalRef.current) clearInterval(progressIntervalRef.current); setProgress(100); }
+        else if (isTakingLong) { if (progressIntervalRef.current) clearInterval(progressIntervalRef.current); setProgress(prev => Math.max(prev, 90)); }
+        else { startProgressSimulation(); }
         return () => { if (progressIntervalRef.current) clearInterval(progressIntervalRef.current); };
     }, [isApiComplete, isTakingLong]);
 
@@ -111,11 +128,15 @@ const SparklesIcon = ({className="w-5 h-5 inline-block"}) => <svg xmlns="http://
 export default function Home() {
     // State management
     const [context, setContext] = useState('');
-    const [query, setQuery] = useState('');
+    // *** NEW State for query handling ***
+    const [selectedQueryOption, setSelectedQueryOption] = useState(''); // Stores the value of the selected dropdown option
+    const [customQuery, setCustomQuery] = useState(''); // Stores text only if "Other..." is selected
+    const [queryToSend, setQueryToSend] = useState(''); // The final query string to be sent to API
+
     const [responses, setResponses] = useState([]);
     const [summary, setSummary] = useState('');
     const [paraphrase, setParaphrase] = useState('');
-    const [error, setError] = useState(null); // Use null for no error
+    const [error, setError] = useState(null);
     const [view, setView] = useState('input');
     const [loading, setLoading] = useState(false);
     const [hasAnalyzed, setHasAnalyzed] = useState(false);
@@ -128,11 +149,49 @@ export default function Home() {
 
     console.log(`Current view state: ${view}`);
 
-    // --- askAI function (v5.4 logic with frontend trim safety) ---
+    // *** Predefined Query Options ***
+    const queryOptions = [
+        { value: '', label: 'Select a question or type your own...' },
+        { value: 'Am I being unreasonable?', label: 'Am I being unreasonable?' },
+        { value: 'Am I in the wrong?', label: 'Am I in the wrong?' },
+        { value: 'AITA?', label: 'AITA?' }, // Am I the Asshole?
+        { value: 'Was my reaction justified?', label: 'Was my reaction justified?' },
+        { value: 'What perspective am I missing?', label: 'What perspective am I missing?' },
+        { value: 'other', label: 'Other (Type below)...' }
+    ];
+
+    // *** Handle Dropdown Change ***
+    const handleQueryOptionChange = (event) => {
+        const selectedValue = event.target.value;
+        setSelectedQueryOption(selectedValue);
+        if (selectedValue === 'other') {
+            setCustomQuery(''); // Clear custom query when "Other" is selected
+            setQueryToSend(''); // Clear final query until user types
+        } else {
+            setQueryToSend(selectedValue); // Set final query directly from dropdown
+            setCustomQuery(''); // Clear custom query field
+        }
+    };
+
+    // *** Handle Custom Query Input Change ***
+    const handleCustomQueryChange = (event) => {
+        const value = event.target.value;
+        setCustomQuery(value);
+        setQueryToSend(value); // Update final query as user types
+    };
+
+
+    // *** askAI function - Modified to use queryToSend ***
     const askAI = async () => {
         console.log("askAI triggered");
+        const finalQuery = queryToSend.trim(); // Use the state derived from dropdown/input
+
         if (!context.trim() || context.trim().length < 10) { setError("Context needed (min 10 chars)."); return; }
-        if (!query.trim() || query.trim().length < 5) { setError("Question needed (min 5 chars)."); return; }
+        // *** Validate the final query string ***
+        if (!finalQuery || finalQuery.length < 5) {
+             setError("Question needed (min 5 chars). Select an option or type your own.");
+             return;
+        }
 
         console.log("Resetting states...");
         setError(null); setResponses([]); setSummary(''); setParaphrase(''); setSelectedPersona(null);
@@ -145,8 +204,13 @@ export default function Home() {
 
         let apiError = null; let apiData = null;
         try {
-            console.log("Sending request to API...");
-            const res = await fetch('/api/getResponses', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ context, query }) });
+            console.log("Sending request to API with query:", finalQuery); // Log the actual query being sent
+            const res = await fetch('/api/getResponses', {
+                 method: 'POST',
+                 headers: { 'Content-Type': 'application/json' },
+                 // *** Send the finalQuery ***
+                 body: JSON.stringify({ context, query: finalQuery })
+            });
             clearTimeout(longLoadTimeoutRef.current); console.log(`API response status: ${res.status}`);
             if (!res.ok) {
                  const errorText = await res.text(); console.error(`API HTTP Error ${res.status}:`, errorText);
@@ -178,21 +242,27 @@ export default function Home() {
         }
     };
 
-    // --- handleRestart and handleSelectPersona (v5.4 logic) ---
-    const handleRestart = () => { console.log("Restarting..."); setContext(''); setQuery(''); setResponses([]); setSummary(''); setParaphrase(''); setError(null); setSelectedPersona(null); setHasAnalyzed(false); setView('input'); setLoading(false); setIsApiComplete(false); setIsTakingLong(false); if (longLoadTimeoutRef.current) clearTimeout(longLoadTimeoutRef.current); window.scrollTo(0, 0); };
+    // --- handleRestart - Reset query states too ---
+    const handleRestart = () => {
+         console.log("Restarting...");
+         setContext('');
+         setSelectedQueryOption(''); // Reset dropdown
+         setCustomQuery(''); // Reset custom field
+         setQueryToSend(''); // Reset final query
+         setResponses([]); setSummary(''); setParaphrase(''); setError(null); setSelectedPersona(null); setHasAnalyzed(false); setView('input'); setLoading(false); setIsApiComplete(false); setIsTakingLong(false);
+         if (longLoadTimeoutRef.current) clearTimeout(longLoadTimeoutRef.current);
+         window.scrollTo(0, 0);
+    };
+
+    // --- handleSelectPersona (Unchanged) ---
     const handleSelectPersona = (persona) => { console.log(`Selecting persona: ${persona}`); if (persona === selectedPersona || isSwitchingPersona) return; setIsSwitchingPersona(true); if (detailViewRef.current) { detailViewRef.current.classList.remove('animate-fadeIn'); void detailViewRef.current.offsetWidth; } setTimeout(() => { setSelectedPersona(persona); setTimeout(() => { setIsSwitchingPersona(false); requestAnimationFrame(() => { if (detailViewRef.current) { detailViewRef.current.classList.add('animate-fadeIn'); } }); }, 50); }, 150); };
     const selectedResponse = responses.find(r => r.persona === selectedPersona);
 
     // --- Render Logic ---
     return (
-        // Main container: Dark gradient background
         <div className={`min-h-screen bg-gradient-to-br from-gray-900 via-slate-900 to-black py-12 sm:py-16 px-4 sm:px-6 lg:px-8 font-sans antialiased text-slate-300 animate-gradient-bg`}>
-             {/* Loading overlay */}
              {view === 'loading' && <LoadingScreen isApiComplete={isApiComplete} isTakingLong={isTakingLong} />}
-
-             {/* Main Content Box: Semi-transparent dark background */}
              <div className={`max-w-5xl mx-auto bg-slate-800/60 backdrop-blur-lg shadow-2xl rounded-3xl overflow-hidden border border-slate-700/60 transition-opacity duration-300 ease-in-out ${view === 'loading' ? 'opacity-0 invisible' : 'opacity-100 visible'}`}>
-                {/* Header: Dark gradient, gradient text */}
                 <div className="bg-gradient-to-r from-slate-900/80 via-gray-900/70 to-slate-800/80 backdrop-blur-sm p-10 sm:p-12 text-center shadow-lg border-b border-slate-700/40">
                    <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-teal-300 to-cyan-400 tracking-tight pb-2">Am I Being Unreasonable?</h1>
                    <p className="mt-3 text-base sm:text-lg text-slate-400 max-w-2xl mx-auto">Confused by a situation? Get clarity and an objective perspective.</p>
@@ -201,40 +271,48 @@ export default function Home() {
                 {/* Input View */}
                 {view === 'input' && (
                     <div className="p-8 sm:p-10 lg:p-12 space-y-8 animate-fadeIn">
+                         {/* Context Input */}
                          <div>
-                             {/* Input Label: Larger, brighter text */}
-                             <label htmlFor="context-input" className="flex items-center text-lg font-semibold text-slate-100 mb-3"> {/* Increased size */}
-                                <DocumentTextIcon />1. Describe the Situation (Context)
-                             </label>
-                             {/* Input Textarea: Light background, dark text */}
-                             <textarea
-                                id="context-input"
-                                className="w-full p-4 text-base border border-slate-300 rounded-xl shadow-sm resize-vertical min-h-[200px] outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition duration-150 ease-in-out bg-slate-100 text-slate-900 placeholder-slate-500" // Light bg, dark text, adjusted placeholder
-                                placeholder="Paste relevant chat logs or describe the events in detail..."
-                                value={context}
-                                onChange={(e) => setContext(e.target.value)}
-                                rows={10}
-                              />
+                             <label htmlFor="context-input" className="flex items-center text-lg font-semibold text-slate-100 mb-3"> <DocumentTextIcon />1. Describe the Situation (Context) </label>
+                             <textarea id="context-input" className="w-full p-4 text-base border border-slate-300 rounded-xl shadow-sm resize-vertical min-h-[200px] outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition duration-150 ease-in-out bg-slate-100 text-slate-900 placeholder-slate-500" placeholder="Paste relevant chat logs or describe the events in detail..." value={context} onChange={(e) => setContext(e.target.value)} rows={10} />
                              <p className="text-xs text-slate-400 mt-2 pl-1">More detail provides more accurate analysis.</p>
                          </div>
+
+                         {/* --- UPDATED Query Section (Dropdown + Optional Input) --- */}
                          <div>
-                             {/* Input Label: Larger, brighter text */}
-                              <label htmlFor="query-input" className="flex items-center text-lg font-semibold text-slate-100 mb-3"> {/* Increased size */}
-                                 <ChatBubbleLeftEllipsisIcon/>2. What is Your Specific Question?
-                              </label>
-                              {/* Input Field: Light background, dark text */}
-                             <input
-                                 id="query-input"
-                                 type="text"
-                                 className="w-full p-4 text-base border border-slate-300 rounded-xl shadow-sm outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition duration-150 ease-in-out bg-slate-100 text-slate-900 placeholder-slate-500" // Light bg, dark text, adjusted placeholder
-                                 placeholder="e.g., Am I wrong here?, Was my reaction unreasonable?"
-                                 value={query}
-                                 onChange={(e) => setQuery(e.target.value)}
-                              />
+                             <label htmlFor="query-select" className="flex items-center text-lg font-semibold text-slate-100 mb-3"> <ChatBubbleLeftEllipsisIcon/>2. What is Your Specific Question? </label>
+                             {/* Dropdown Select */}
+                             <select
+                                 id="query-select"
+                                 value={selectedQueryOption}
+                                 onChange={handleQueryOptionChange}
+                                 className="w-full p-4 text-base border border-slate-300 rounded-xl shadow-sm outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition duration-150 ease-in-out bg-slate-100 text-slate-900 placeholder-slate-500 appearance-none cursor-pointer" // Added appearance-none, cursor-pointer
+                             >
+                                 {queryOptions.map(option => (
+                                     <option key={option.value} value={option.value} disabled={option.value === ''}>
+                                         {option.label}
+                                     </option>
+                                 ))}
+                             </select>
+
+                             {/* Conditional Text Input for "Other..." */}
+                             {selectedQueryOption === 'other' && (
+                                 <div className="mt-4"> {/* Add some space */}
+                                     <input
+                                         id="custom-query-input"
+                                         type="text"
+                                         className="w-full p-4 text-base border border-slate-300 rounded-xl shadow-sm outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition duration-150 ease-in-out bg-slate-100 text-slate-900 placeholder-slate-500"
+                                         placeholder="Enter your specific question here..."
+                                         value={customQuery}
+                                         onChange={handleCustomQueryChange}
+                                     />
+                                 </div>
+                             )}
                          </div>
+
                          {/* Error Display (Input view) */}
                          {error && view === 'input' && <div className="pt-2"><Alert type="error" title="Input Error" message={error} /></div>}
-                          {/* Submit Button: Unchanged */}
+                          {/* Submit Button */}
                          <div className="text-center pt-6">
                              <button onClick={askAI} disabled={loading} className={`inline-flex items-center justify-center px-12 py-3.5 border border-transparent text-base font-semibold rounded-full shadow-lg text-white transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 focus:ring-offset-slate-800 transform hover:scale-105 active:scale-100 ${ loading ? 'bg-gray-500 cursor-not-allowed opacity-70' : 'bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700'}`}>
                                 {loading ? ( <> <LoadingSpinner /> <span className="ml-3">Analysing...</span> </> ) : ( <> <SparklesIcon className="w-5 h-5 mr-2"/> Get Objective Analysis</> )}
@@ -248,83 +326,52 @@ export default function Home() {
                     <div className="bg-transparent px-6 md:px-10 py-10 border-t border-slate-700/40">
                         {/* Error Display (Results view) */}
                         {error && ( <div className="mb-10 max-w-3xl mx-auto"> <Alert type={error.toLowerCase().includes("incomplete") || error.toLowerCase().includes("partially") || error.toLowerCase().includes("failed") || error.toLowerCase().includes("issue") || error.toLowerCase().includes("skipped") || error.toLowerCase().includes("generate") ? "warning" : "error"} title={error.toLowerCase().includes("incomplete") || error.toLowerCase().includes("partially") ? "Analysis Incomplete" : (error.toLowerCase().includes("failed") || error.toLowerCase().includes("issue") || error.toLowerCase().includes("generate") || error.toLowerCase().includes("skipped") ? "Analysis Issue" : "Error")} message={error} /> </div> )}
-
                         {/* Results Sections Container */}
                         {!error || (error && !error.toLowerCase().includes('service connection') && !error.toLowerCase().includes('invalid request') && !error.toLowerCase().includes('server configuration')) ? (
-                             <div className='space-y-10 md:space-y-12'> {/* Add spacing between result sections */}
-                                {/* Paraphrase Section: Light background, dark text */}
-                                {paraphrase && !paraphrase.startsWith("[") && (
-                                    <div className="max-w-3xl mx-auto text-center">
-                                        <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">Your Situation Summary</h3>
-                                        {/* Light background, dark text */}
-                                        <blockquote className="text-base italic text-slate-800 bg-slate-100 p-4 rounded-lg border border-slate-300 shadow">
-                                             "{paraphrase}"
-                                        </blockquote>
-                                    </div>
-                                )}
-                                {/* Paraphrase Error Alert */}
+                             <div className='space-y-10 md:space-y-12'>
+                                {/* Paraphrase Section */}
+                                {paraphrase && !paraphrase.startsWith("[") && ( <div className="max-w-3xl mx-auto text-center"> <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">Your Situation Summary</h3> <blockquote className="text-base italic text-slate-800 bg-slate-100 p-4 rounded-lg border border-slate-300 shadow"> "{paraphrase}" </blockquote> </div> )}
                                 {paraphrase && paraphrase.startsWith("[") && (!error || !error.toLowerCase().includes('paraphrase')) && ( <div className="max-w-3xl mx-auto"> <Alert type="warning" title="Context Summary Issue" message="Could not generate situation summary." /> </div> )}
-
-                                {/* Verdict Section: Light background, dark text */}
-                                {summary && !summary.startsWith("[") && (
-                                    <div className="border-t border-slate-700/40 pt-10 md:pt-12">
-                                        {/* Heading: Keep gradient style */}
-                                        <h2 className="text-2xl md:text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-teal-300 to-cyan-400 mb-6 text-center tracking-tight">The Quick Verdict</h2>
-                                        {/* Container: Light background */}
-                                        <div className="bg-white text-slate-800 rounded-xl p-6 shadow-lg max-w-3xl mx-auto border border-slate-300">
-                                            {/* Markdown: Pass isDark=false */}
-                                            <MarkdownRenderer content={summary} className="prose-sm" isDark={false} />
-                                        </div>
-                                    </div>
-                                 )}
-                                 {/* Summary Error Alert */}
-                                 {summary && summary.startsWith("[") && (!error || !error.toLowerCase().includes('summary')) && ( <div className="max-w-3xl mx-auto"> <Alert type="warning" title="Verdict Issue" message="Could not generate the final verdict summary." /> </div> )}
-
+                                {/* Verdict Section */}
+                                {summary && !summary.startsWith("[") && ( <div className="border-t border-slate-700/40 pt-10 md:pt-12"> <h2 className="text-2xl md:text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-teal-300 to-cyan-400 mb-6 text-center tracking-tight">The Quick Verdict</h2> <div className="bg-white text-slate-900 rounded-xl p-6 shadow-lg max-w-3xl mx-auto border border-slate-300"> {/* Explicit dark text */} <MarkdownRenderer content={summary} className="prose-sm" isDark={false} /> </div> </div> )}
+                                {summary && summary.startsWith("[") && (!error || !error.toLowerCase().includes('summary')) && ( <div className="max-w-3xl mx-auto"> <Alert type="warning" title="Verdict Issue" message="Could not generate the final verdict summary." /> </div> )}
                                 {/* Detailed Perspectives Section */}
                                 {responses.some(r => r.response && !r.response.startsWith("[")) && (
                                     <div className="border-t border-slate-700/40 pt-10 md:pt-12">
-                                         {/* Heading: Keep gradient style */}
                                         <h2 className="text-2xl md:text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-teal-300 to-cyan-400 mb-8 text-center tracking-tight">Detailed Analysis Perspectives</h2>
-                                         {/* Persona Buttons: Unchanged styling */}
                                         <div className="flex justify-center flex-wrap gap-3 sm:gap-4 mb-10 border-b border-slate-700/40 pb-6">
                                              {responses.map((r) => ( r.response && !r.response.startsWith("[") && <button key={r.persona} onClick={() => handleSelectPersona(r.persona)} className={`px-5 py-2 text-sm font-medium rounded-full transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2 focus:ring-offset-slate-800 whitespace-nowrap transform hover:scale-103 active:scale-100 ${ selectedPersona === r.persona ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-lg ring-2 ring-offset-1 ring-cyan-400 scale-105' : 'text-slate-200 bg-slate-700/40 hover:bg-slate-600/60 border border-slate-600/60' }`} > {r.persona.split('(')[0].trim()} </button> ))}
                                          </div>
-                                         {/* Selected Persona Detail View */}
                                         <div ref={detailViewRef} className={`transition-opacity duration-300 ease-in-out ${isSwitchingPersona ? 'opacity-30' : 'opacity-100'}`} >
                                             {selectedResponse && !selectedResponse.response.startsWith("[") && (
-                                                // Container: Light background
-                                                <div key={selectedPersona} className="bg-white rounded-2xl p-6 md:p-8 shadow-xl border border-slate-300 max-w-3xl mx-auto animate-fadeIn mb-10">
-                                                    {/* Persona Title: Dark text */}
-                                                    <h3 className="text-xl font-semibold text-slate-800 mb-5">
+                                                // *** Explicit dark text for container ***
+                                                <div key={selectedPersona} className="bg-white text-slate-900 rounded-2xl p-6 md:p-8 shadow-xl border border-slate-300 max-w-3xl mx-auto animate-fadeIn mb-10">
+                                                    <h3 className="text-xl font-semibold text-slate-800 mb-5"> {/* Dark text for persona title */}
                                                         {selectedResponse.persona}
                                                     </h3>
-                                                    {/* Markdown Content: Pass isDark=false */}
                                                     <div className="text-[15px] leading-relaxed space-y-4">
+                                                        {/* Pass isDark=false to use light mode prose styles */}
                                                         <MarkdownRenderer content={selectedResponse.response} isDark={false} />
                                                     </div>
                                                 </div>
                                             )}
-                                             {/* Prompt to select persona */}
                                              {!selectedResponse && responses.some(r => r.response && !r.response.startsWith("[")) && ( <div className="text-center text-slate-500 italic mt-4">Select a perspective above to view details.</div> )}
                                          </div>
                                     </div>
                                 )}
                                 {/* Fallback message */}
                                 {!summary && !responses.some(r => r.response && !r.response.startsWith("[")) && !error && ( <div className="text-center text-slate-400 py-10"> No analysis could be generated for this input. Please try rephrasing your situation or question. </div> )}
-                            </div> // End results sections container
+                            </div>
                         ) : null /* Don't render results if critical error */}
-                        {/* Restart Button: Unchanged */}
+                        {/* Restart Button */}
                         <div className="mt-12 text-center border-t border-slate-700/40 pt-10 md:pt-12">
                               <button onClick={handleRestart} className="inline-flex items-center justify-center px-10 py-3 border border-slate-600/60 text-base font-medium rounded-xl shadow-sm text-slate-200 bg-slate-700/40 hover:bg-slate-600/60 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 focus:ring-offset-slate-800 transition duration-150 ease-in-out transform hover:scale-103 active:scale-100" > Analyse Another Situation </button>
                         </div>
                     </div>
                 )}
-                 {/* Fallback for invalid view state */}
                  {view !== 'input' && view !== 'results' && view !== 'loading' && ( <div className="p-12 text-center text-red-400">Internal application error: Invalid view state.</div> )}
             </div>
-             {/* Footer: Unchanged */}
              <footer className="text-center mt-16 text-slate-500 text-sm px-4"> © {new Date().getFullYear()} Am I Being Unreasonable?™ | AI Analysis Tool | For informational purposes only. Use results critically. </footer>
-             {/* Global Styles: Unchanged */}
              <style jsx global>{` @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } } .animate-fadeIn { animation: fadeIn 0.4s ease-out forwards; } @keyframes gradient-xy { 0%, 100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } } .animate-gradient-xy { background-size: 300% 300%; animation: gradient-xy 18s ease infinite; } @keyframes gradient-background { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } } .animate-gradient-bg { background-size: 200% 200%; animation: gradient-background 25s ease infinite; } @keyframes pulse-bar { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } } .animate-pulse-bar { animation: pulse-bar 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite; } `}</style>
         </div>
     );
