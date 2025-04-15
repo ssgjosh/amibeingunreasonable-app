@@ -291,6 +291,9 @@ const AnimatedPlaceholder = ({ isActive }) => {
 export default function Home() {
     // State management
     const [context, setContext] = useState('');
+    const [shareableLink, setShareableLink] = useState(''); // State for the generated share link
+    const [isSharing, setIsSharing] = useState(false); // State for share button loading
+    const [copySuccess, setCopySuccess] = useState(''); // State for copy-to-clipboard feedback
     // *** State for query handling ***
     const [selectedQueryOption, setSelectedQueryOption] = useState(''); // Stores the value of the selected dropdown option
     const [customQuery, setCustomQuery] = useState(''); // Stores text only if "Other..." is selected
@@ -299,7 +302,6 @@ export default function Home() {
     // *** State for follow-up questions ***
     const [followUpQuestions, setFollowUpQuestions] = useState([]);
     const [followUpAnswers, setFollowUpAnswers] = useState({});
-    const [followUpQuestionsReviewed, setFollowUpQuestionsReviewed] = useState(false);
     const [isGeneratingFollowUps, setIsGeneratingFollowUps] = useState(false);
     const [skipFollowUpQuestions, setSkipFollowUpQuestions] = useState(false); // New state to track if user wants to skip follow-ups
 
@@ -398,7 +400,7 @@ const generateFollowUpQuestions = async () => {
                 initialAnswers[index] = '';
             });
             setFollowUpAnswers(initialAnswers);
-            setFollowUpQuestionsReviewed(false);
+            // Removed setFollowUpQuestionsReviewed(false);
             
             // Only show follow-up questions if user hasn't chosen to skip them
             if (!skipFollowUpQuestions) {
@@ -516,13 +518,7 @@ const askAI = async () => {
         return; // Stop here, as we'll now show the follow-up questions view
     }
 
-    // If we're in the follow-up view but the user hasn't reviewed the questions yet
-    if (view === 'followup' && !followUpQuestionsReviewed) {
-        setError("Please review the follow-up questions before proceeding.");
-        return;
-    }
-    
-    // If we're in the follow-up view and questions are reviewed, proceed to analysis
+    // If we're in the follow-up view, proceed to analysis
     if (view === 'followup') {
         return await proceedToAnalysis();
     }
@@ -553,14 +549,14 @@ const askAI = async () => {
     const handleSelectPersona = (persona) => {
         console.log(`Selecting persona: ${persona}`);
         if (persona === selectedPersona || isSwitchingPersona) return;
-        
+
         setIsSwitchingPersona(true);
-        
+
         if (detailViewRef.current) {
             detailViewRef.current.classList.remove('animate-fadeIn');
             void detailViewRef.current.offsetWidth;
         }
-        
+
         setTimeout(() => {
             setSelectedPersona(persona);
             setTimeout(() => {
@@ -572,6 +568,71 @@ const askAI = async () => {
                 });
             }, 50);
         }, 150);
+    };
+
+    // *** Function to handle sharing ***
+    const handleShare = async () => {
+        if (!context || !queryToSend || !responses || responses.length === 0) {
+            console.warn("Attempted to share without complete results data.");
+            setCopySuccess('Cannot share yet - results missing.'); // Provide feedback
+            setTimeout(() => setCopySuccess(''), 3000);
+            return;
+        }
+
+        setIsSharing(true);
+        setShareableLink('');
+        setCopySuccess('');
+
+        // Consolidate data to be saved
+        const resultsData = {
+            context,
+            query: queryToSend,
+            followUpResponses: followUpQuestions.map((question, index) => ({
+                question,
+                answer: followUpAnswers[index] || ''
+            })),
+            responses, // The array of persona responses
+            summary,
+            paraphrase,
+            timestamp: new Date().toISOString() // Add a timestamp for context
+        };
+
+        try {
+            const res = await fetch('/api/saveResults', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(resultsData)
+            });
+
+            if (!res.ok) {
+                const errorText = await res.text();
+                throw new Error(`Failed to save results: ${res.status} ${errorText}`);
+            }
+
+            const data = await res.json();
+            const newLink = `${window.location.origin}/results/${data.id}`;
+            setShareableLink(newLink);
+
+            // Attempt to copy to clipboard
+            try {
+                await navigator.clipboard.writeText(newLink);
+                setCopySuccess('Link copied to clipboard!');
+            } catch (copyError) {
+                console.error('Failed to copy link automatically:', copyError);
+                setCopySuccess('Link generated. Copy manually.'); // Fallback message
+            }
+             // Clear success message after a few seconds
+            setTimeout(() => setCopySuccess(''), 5000);
+
+
+        } catch (error) {
+            console.error("Error sharing results:", error);
+            setCopySuccess(`Error: ${error.message}`);
+             // Clear error message after a few seconds
+            setTimeout(() => setCopySuccess(''), 5000);
+        } finally {
+            setIsSharing(false);
+        }
     };
     const selectedResponse = responses.find(r => r.persona === selectedPersona);
 
@@ -640,45 +701,48 @@ const askAI = async () => {
                              )}
                          </div>
 
-                         {/* Skip Follow-up Questions Option */}
-                         <div className="flex items-center justify-center mt-4">
-                             <label className="inline-flex items-center cursor-pointer">
-                                 <input
-                                     type="checkbox"
-                                     className="form-checkbox h-5 w-5 text-cyan-500 rounded border-slate-400 focus:ring-cyan-500 focus:ring-offset-slate-800"
-                                     checked={skipFollowUpQuestions}
-                                     onChange={(e) => setSkipFollowUpQuestions(e.target.checked)}
-                                 />
-                                 <span className="ml-2 text-slate-300">Skip follow-up questions and get immediate analysis</span>
-                             </label>
-                         </div>
-
                          {/* Error Display (Input view) */}
                          {error && view === 'input' && <div className="pt-2"><Alert type="error" title="Input Error" message={error} /></div>}
                          
-                         {/* Analysis Process Explanation */}
-                         <div className="bg-slate-700/40 rounded-xl p-4 border border-slate-600/40 mt-4">
-                             <h3 className="text-sm font-semibold text-cyan-400 mb-2">What to expect:</h3>
-                             <p className="text-sm text-slate-300">
-                                 {skipFollowUpQuestions ?
-                                     "You'll receive an immediate objective analysis of your situation." :
-                                     "First, we'll ask a few follow-up questions to better understand your situation. Then you'll receive a comprehensive objective analysis."}
-                             </p>
-                         </div>
-                         
-                         {/* Submit Button */}
-                         <div className="text-center pt-4">
+                         {/* --- Next Step Section --- */}
+                         <div className="text-center pt-6 mt-6 border-t border-slate-700/40">
+                             {/* Explanation */}
+                             <div className="mb-5 px-4">
+                                 <h3 className="text-base font-semibold text-cyan-400 mb-2">Next Step:</h3>
+                                 <p className="text-sm text-slate-300 max-w-lg mx-auto">
+                                     {skipFollowUpQuestions ?
+                                         "You'll receive an immediate objective analysis of your situation." :
+                                         "We'll generate a few optional follow-up questions designed to improve the analysis."}
+                                 </p>
+                             </div>
+
+                             {/* Skip Follow-up Questions Option */}
+                             <div className="flex items-center justify-center mb-6"> {/* Added mb-6 for spacing */}
+                                 <label className="inline-flex items-center cursor-pointer">
+                                     <input
+                                         type="checkbox"
+                                         className="form-checkbox h-5 w-5 text-cyan-500 rounded border-slate-400 focus:ring-cyan-500 focus:ring-offset-slate-800"
+                                         checked={skipFollowUpQuestions}
+                                         onChange={(e) => setSkipFollowUpQuestions(e.target.checked)}
+                                     />
+                                     {/* Added text-sm to match explanation */}
+                                     <span className="ml-2 text-slate-300 text-sm">Skip follow-up questions and get immediate analysis</span>
+                                 </label>
+                             </div>
+
+                             {/* Submit Button */}
                              <button
-                               onClick={askAI}
-                               disabled={loading || isGeneratingFollowUps}
-                               className={`inline-flex items-center justify-center px-12 py-3.5 border border-transparent text-base font-semibold rounded-full shadow-lg text-white transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 focus:ring-offset-slate-800 transform hover:scale-105 active:scale-100 ${ (loading || isGeneratingFollowUps) ? 'bg-gray-500 cursor-not-allowed opacity-70' : 'bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700'}`}
+                                onClick={askAI}
+                                disabled={loading || isGeneratingFollowUps}
+                                className={`inline-flex items-center justify-center px-12 py-3.5 border border-transparent text-base font-semibold rounded-full shadow-lg text-white transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 focus:ring-offset-slate-800 transform hover:scale-105 active:scale-100 ${ (loading || isGeneratingFollowUps) ? 'bg-gray-500 cursor-not-allowed opacity-70' : 'bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700'}`}
                              >
                                 {loading ? (
                                    <> <LoadingSpinner /> <span className="ml-3">Analysing...</span> </>
                                 ) : isGeneratingFollowUps ? (
                                    <> <LoadingSpinner /> <span className="ml-3">Generating Questions...</span> </>
                                 ) : (
-                                   <> <SparklesIcon className="w-5 h-5 mr-2"/> {skipFollowUpQuestions ? "Get Immediate Analysis" : "Continue"}</>
+                                   /* Updated button text */
+                                   <> <SparklesIcon className="w-5 h-5 mr-2"/> {skipFollowUpQuestions ? "Get Immediate Analysis" : "Generate Follow-up Questions"}</>
                                 )}
                              </button>
                          </div>
@@ -695,15 +759,10 @@ const askAI = async () => {
                            </div>
                            <div className="bg-slate-700/40 rounded-xl p-6 border border-slate-600/40 mb-6">
                                <p className="text-slate-300 mb-4">
-                                   <span className="text-cyan-400 font-semibold">These follow-up questions are optional</span> but may improve the quality of your analysis.
-                                   You can answer as many or as few as you'd like.
-                                   {!followUpQuestionsReviewed && (
-                                       <span className="block mt-2">
-                                           When you're ready, click "Continue to Analysis" below.
-                                       </span>
-                                   )}
+                                   <span className="text-cyan-400 font-semibold">These follow-up questions are optional</span> but answering them may improve the quality of your analysis.
+                                   Answer as many or as few as you'd like, then click "Continue to Analysis" below.
                                </p>
-                               
+
                                <div className="space-y-6 mt-6">
                                    {followUpQuestions.map((question, index) => (
                                        <div key={index} className="bg-slate-800/60 rounded-lg p-5 border border-slate-700/60">
@@ -728,10 +787,7 @@ const askAI = async () => {
                            {/* Action Buttons */}
                            <div className="flex flex-col sm:flex-row justify-center gap-4 pt-6">
                                <button
-                                   onClick={() => {
-                                       setFollowUpQuestionsReviewed(true);
-                                       askAI();
-                                   }}
+                                   onClick={askAI} // Directly call askAI
                                    disabled={loading}
                                    className={`inline-flex items-center justify-center px-8 py-3 border border-transparent text-base font-semibold rounded-full shadow-lg text-white transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 focus:ring-offset-slate-800 transform hover:scale-105 active:scale-100 ${loading ? 'bg-gray-500 cursor-not-allowed opacity-70' : 'bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700'}`}
                                >
@@ -741,17 +797,7 @@ const askAI = async () => {
                                        <> <SparklesIcon className="w-5 h-5 mr-2"/> Continue to Analysis</>
                                    )}
                                </button>
-                               
-                               <button
-                                   onClick={() => {
-                                       setView('input');
-                                       setFollowUpQuestions([]);
-                                       setFollowUpAnswers({});
-                                   }}
-                                   className="inline-flex items-center justify-center px-6 py-3 border border-slate-600/60 text-base font-medium rounded-full shadow-sm text-slate-200 bg-slate-700/40 hover:bg-slate-600/60 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 focus:ring-offset-slate-800 transition duration-150 ease-in-out transform hover:scale-103 active:scale-100"
-                               >
-                                   Back to Main Question
-                               </button>
+                               {/* Removed "Back to Main Question" button */}
                            </div>
                        </div>
                    </div>
@@ -768,6 +814,54 @@ const askAI = async () => {
                                 {/* Paraphrase Section */}
                                 {paraphrase && !paraphrase.startsWith("[") && ( <div className="max-w-3xl mx-auto text-center"> <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">Your Situation Summary</h3> <blockquote className="text-base italic text-slate-800 bg-slate-100 p-4 rounded-lg border border-slate-300 shadow"> "{paraphrase}" </blockquote> </div> )}
                                 {paraphrase && paraphrase.startsWith("[") && (!error || !error.toLowerCase().includes('paraphrase')) && ( <div className="max-w-3xl mx-auto"> <Alert type="warning" title="Context Summary Issue" message="Could not generate situation summary." /> </div> )}
+                                {/* Share Button Section */}
+                                <div className="mt-6 text-center max-w-3xl mx-auto">
+                                    <button
+                                        onClick={handleShare}
+                                        disabled={isSharing || !hasAnalyzed}
+                                        className={`inline-flex items-center justify-center px-6 py-2 border border-transparent text-base font-medium rounded-md shadow-sm text-white ${isSharing ? 'bg-slate-500 cursor-not-allowed' : 'bg-cyan-600 hover:bg-cyan-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-800 focus:ring-cyan-500'} transition duration-150 ease-in-out disabled:opacity-60`}
+                                    >
+                                        {isSharing ? (
+                                            <>
+                                                <LoadingSpinner />
+                                                <span className="ml-2">Generating Link...</span>
+                                            </>
+                                        ) : (
+                                            'Share Results'
+                                        )}
+                                    </button>
+                                    {shareableLink && (
+                                        <div className="mt-4 p-3 bg-slate-900 rounded-md border border-slate-700 flex items-center justify-between">
+                                            <input
+                                                type="text"
+                                                value={shareableLink}
+                                                readOnly
+                                                className="flex-grow bg-transparent text-slate-300 border-none focus:ring-0 text-sm p-0 mr-2"
+                                                onClick={(e) => e.target.select()} // Select text on click
+                                            />
+                                            <button
+                                                onClick={async () => {
+                                                    try {
+                                                        await navigator.clipboard.writeText(shareableLink);
+                                                        setCopySuccess('Copied!');
+                                                    } catch (err) {
+                                                        setCopySuccess('Failed to copy.');
+                                                    }
+                                                    setTimeout(() => setCopySuccess(''), 2000);
+                                                }}
+                                                className="text-xs bg-slate-700 hover:bg-slate-600 text-slate-300 px-2 py-1 rounded"
+                                            >
+                                                Copy
+                                            </button>
+                                        </div>
+                                    )}
+                                    {copySuccess && (
+                                        <p className={`mt-2 text-sm ${copySuccess.includes('Error') || copySuccess.includes('Failed') || copySuccess.includes('Cannot') ? 'text-red-400' : 'text-green-400'}`}>
+                                            {copySuccess}
+                                        </p>
+                                    )}
+                                </div>
+
                                 {/* Verdict Section */}
                                 {summary && !summary.startsWith("[") && (
                                     <div className="border-t border-slate-700/40 pt-10 md:pt-12">
