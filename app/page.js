@@ -60,7 +60,7 @@ const LoadingScreen = ({ isApiComplete, isTakingLong }) => {
     const regularLoadingMessages = [
         "Right then, let's have a proper look at this...",
         "Firing up the Judgement Engine™...",
-        "Analysing the precise levels of 'cheek' involved...",
+        "Analysing the precise levels of 'cheek' involved...", // UK English
         "Brewing a strong digital cuppa for concentration...",
         "Consulting the archives of awkward situations...",
         "Untangling the 'he said, she said'... it's knotty.",
@@ -97,7 +97,7 @@ const LoadingScreen = ({ isApiComplete, isTakingLong }) => {
         "Just double-checking the definition of 'reasonable'...",
         "Warming up the 'Gentle Reality Check' function...",
         "This requires the kind of focus usually reserved for Wordle...",
-        "Okay, deep breaths... analysing the core issue.",
+        "Okay, deep breaths... analysing the core issue.", // UK English
         "Sorting the genuine grievance from the minor niggle...",
         "Finalising our preliminary thoughts...",
         "Nearly there... formulating the official-ish verdict.",
@@ -122,7 +122,7 @@ const LoadingScreen = ({ isApiComplete, isTakingLong }) => {
         "Hold tight, we're navigating multiple layers of 'Are you serious?!'.",
         "This situation requires the digital equivalent of a long, thoughtful pause.",
         "Wow, you didn't make this easy, did you? Deploying advanced nuance detectors...",
-        "High levels of 'Well, actually...' detected. Deep analysis required.",
+        "High levels of 'Well, actually...' detected. Deep analysis required.", // UK English
         "We've had to send out for more digital tea and biscuits for this one.",
         "Don't worry, we're still on it – just consulting the 'Advanced Interpersonal Dramas' archive.",
         "Okay, this requires unpacking properly. Please bear with us.",
@@ -136,18 +136,18 @@ const LoadingScreen = ({ isApiComplete, isTakingLong }) => {
         "This requires more processing power than initially anticipated. Must be juicy!",
         "Our circuits are whirring with the sheer complexity. Nearly there!",
         "Just running the 'Could *we* be BU?' check again on this tricky one.",
-        "Performing multi-dimensional awkwardness analysis.",
+        "Performing multi-dimensional awkwardness analysis.", // UK English
         "This scenario has more twists than a curly wurly. We need a mo'.",
         "Recalibrating our perspective engines for this unique challenge.",
         "Don't fret, we haven't forgotten you – just ensuring a top-tier judgement.",
-        "Seems simple on the surface, but oh boy, the undercurrents! Analysing...",
+        "Seems simple on the surface, but oh boy, the undercurrents! Analysing...", // UK English
         "Our 'Hmmmm' indicators are off the charts. Requires further thought.",
         "Activating the 'Is there a backstory we're missing?' protocol.",
         "This is taking a bit longer because, frankly, it's fascinating.",
         "Confirming resource allocation... Yep, throwing more AI brainpower at it.",
         "Nearly cracked it... just polishing the final verdict."
     ];
-    const [loadingText, setLoadingText] = useState("Initiating analysis...");
+    const [loadingText, setLoadingText] = useState("Initiating analysis..."); // UK English
     const [progress, setProgress] = useState(0);
     const progressIntervalRef = useRef(null);
     const textIntervalRef = useRef(null);
@@ -311,7 +311,7 @@ export default function Home() {
     const [error, setError] = useState(null);
     const [view, setView] = useState('input');
     const [loading, setLoading] = useState(false);
-    const [hasAnalyzed, setHasAnalyzed] = useState(false);
+    const [hasAnalysed, setHasAnalysed] = useState(false);
     const [selectedPersona, setSelectedPersona] = useState(null);
     const [isSwitchingPersona, setIsSwitchingPersona] = useState(false);
     const [isApiComplete, setIsApiComplete] = useState(false);
@@ -492,7 +492,7 @@ const proceedToAnalysis = async (answers = followUpAnswers) => {
     } finally {
         console.log("Entering finally block..."); setIsApiComplete(true); setError(typeof apiError === 'string' ? apiError : null);
         console.log(`Final error state set to: ${typeof apiError === 'string' ? apiError : null}`);
-        setTimeout(() => { console.log("Setting loading=false, view='results'"); setLoading(false); setView('results'); setHasAnalyzed(true); }, 400);
+        setTimeout(() => { console.log("Setting loading=false, view='results'"); setLoading(false); setView('results'); setHasAnalysed(true); }, 400);
     }
     
     return true;
@@ -540,7 +540,7 @@ const askAI = async () => {
          setFollowUpAnswers({});
          setFollowUpQuestionsReviewed(false);
          setSkipFollowUpQuestions(false); // Reset skip follow-up questions state
-         setResponses([]); setSummary(''); setParaphrase(''); setError(null); setSelectedPersona(null); setHasAnalyzed(false); setView('input'); setLoading(false); setIsApiComplete(false); setIsTakingLong(false);
+         setResponses([]); setSummary(''); setParaphrase(''); setError(null); setSelectedPersona(null); setHasAnalysed(false); setView('input'); setLoading(false); setIsApiComplete(false); setIsTakingLong(false);
          if (longLoadTimeoutRef.current) clearTimeout(longLoadTimeoutRef.current);
          window.scrollTo(0, 0);
     };
@@ -736,14 +736,14 @@ const askAI = async () => {
                                 disabled={loading || isGeneratingFollowUps}
                                 className={`inline-flex items-center justify-center px-12 py-3.5 border border-transparent text-base font-semibold rounded-full shadow-lg text-white transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 focus:ring-offset-slate-800 transform hover:scale-105 active:scale-100 ${ (loading || isGeneratingFollowUps) ? 'bg-gray-500 cursor-not-allowed opacity-70' : 'bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700'}`}
                              >
-                                {loading ? (
-                                   <> <LoadingSpinner /> <span className="ml-3">Analysing...</span> </>
-                                ) : isGeneratingFollowUps ? (
-                                   <> <LoadingSpinner /> <span className="ml-3">Generating Questions...</span> </>
-                                ) : (
-                                   /* Updated button text */
-                                   <> <SparklesIcon className="w-5 h-5 mr-2"/> {skipFollowUpQuestions ? "Get Immediate Analysis" : "Generate Follow-up Questions"}</>
-                                )}
+                                 {loading ? (
+                                    <> <LoadingSpinner /> <span className="ml-3">Analysing...</span> </>
+                                 ) : isGeneratingFollowUps ? (
+                                    <> <LoadingSpinner /> <span className="ml-3">Generating Questions...</span> </>
+                                 ) : (
+                                    /* Updated button text */
+                                    <> <SparklesIcon className="w-5 h-5 mr-2"/> {skipFollowUpQuestions ? "Get Immediate Analysis" : "Generate Follow-up Questions"}</>
+                                 )}
                              </button>
                          </div>
                     </div>
@@ -818,7 +818,7 @@ const askAI = async () => {
                                 <div className="mt-6 text-center max-w-3xl mx-auto">
                                     <button
                                         onClick={handleShare}
-                                        disabled={isSharing || !hasAnalyzed}
+                                        disabled={isSharing || !hasAnalysed}
                                         className={`inline-flex items-center justify-center px-6 py-2 border border-transparent text-base font-medium rounded-md shadow-sm text-white ${isSharing ? 'bg-slate-500 cursor-not-allowed' : 'bg-cyan-600 hover:bg-cyan-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-800 focus:ring-cyan-500'} transition duration-150 ease-in-out disabled:opacity-60`}
                                     >
                                         {isSharing ? (

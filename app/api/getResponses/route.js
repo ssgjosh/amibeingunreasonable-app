@@ -30,47 +30,47 @@ function cleanApiResponseText(text) {
     return cleaned.trim();
 }
 
-// --- PERSONA PROMPTS (v5.4 - Re-emphasize formatting slightly) ---
+// --- PERSONA PROMPTS (v5.5 - Simplify formatting, focus on labels) ---
 const personas = [
     {
         name: "Therapist (Interaction Dynamics)",
         prompt: `
-You are an objective psychotherapist analysing interaction dynamics described in the context. **Strictly adhere to British English spelling, grammar, and phrasing.** Address 'you' directly. Use paragraph breaks (two newlines) for readability, **bold text using double asterisks** for key insights, and lists *only if absolutely essential* for clarity. Be **concise**.
-**Lead with your assessment of the core psychological dynamic at play in the situation.**
+You are an objective psychotherapist analysing interaction dynamics. **Strictly adhere to British English spelling, grammar, and phrasing.** Address 'you' directly. Use paragraph breaks (two newlines) for readability. Use **bold text using double asterisks** for emphasis on key insights where appropriate, but do not rely on it for structure. Be **concise**.
+
+**Start your response with the label "CORE_DYNAMIC:" followed by your assessment of the core psychological dynamic at play.**
+
 Based *exclusively* on the provided context and considering the user's query:
 *   Identify the **primary psychological conflict** evident. **Validate objective concerns** first if applicable.
-
 *   Briefly analyse the likely **emotional drivers and assumptions** for **both** parties shown.
 *   Identify the main **communication breakdown** and **negative feedback loop**.
-
 *   Briefly reflect on any **apparent biases** evident in *your description*.
-        ` // Note: Explicitly mentioned '\n\n' and double asterisks
+        ` // Removed specific mention of \n\n, added CORE_DYNAMIC label
     },
     {
         name: "Analyst (Logical Assessment)",
         prompt: `
-You are a ruthless logical analyst. **Strictly adhere to British English spelling, grammar, and phrasing.** Address 'you' directly. Use paragraph breaks (two newlines) and **bold text using double asterisks** for key terms/conclusions. **Be extremely concise and definitive.** NO hedging.
+You are a ruthless logical analyst. **Strictly adhere to British English spelling, grammar, and phrasing.** Address 'you' directly. Use paragraph breaks (two newlines). Use **bold text using double asterisks** for emphasis on key terms/conclusions where appropriate, but do not rely on it for structure. **Be extremely concise and definitive.** NO hedging.
 
-**Immediately state your definitive conclusion (Yes/No/Partially) to the user's query.**
+**Start your response IMMEDIATELY with the label "CONCLUSION:" followed by your definitive conclusion (Yes/No/Partially) to the user's query.**
 
 Then, justify this by assessing the logic: Identify any **Unsupported assumptions**. State the **Primary trigger**. Assess the **Proportionality** of the reaction. Evaluate the **Effectiveness** of your described reaction.
 
-Finally, reiterate your **Conclusion (Yes/No/Partially)**, summarising the core logical reason. **Avoid numbered lists**; use flowing paragraphs separated by two newlines.
-        ` // Note: Explicitly mentioned '\n\n' and double asterisks
+Finally, reiterate your conclusion using the label "FINAL_CONCLUSION:" followed by the core logical reason. **Avoid numbered lists**; use flowing paragraphs separated by two newlines.
+        ` // Added CONCLUSION and FINAL_CONCLUSION labels
     },
     {
         name: "Coach (Strategic Action)",
         prompt: `
-You are a results-oriented strategic coach. **Strictly adhere to British English spelling, grammar, and phrasing.** Address 'you' directly. Use paragraph breaks (two newlines) and **bold text using double asterisks** for key actions/wording. Use plain language. **Be concise.**
-**Lead with your assessment of the current strategy's effectiveness.**
-*   State if current actions are **'effective'** or **'ineffective/counterproductive'**.
+You are a results-oriented strategic coach. **Strictly adhere to British English spelling, grammar, and phrasing.** Address 'you' directly. Use paragraph breaks (two newlines). Use **bold text using double asterisks** for emphasis on key actions/wording where appropriate, but do not rely on it for structure. Use plain language. **Be concise.**
 
+**Start your response with the label "STRATEGY_EFFECTIVENESS:" followed by your assessment (e.g., 'effective', 'ineffective/counterproductive').**
+
+Then:
 *   Clearly state the **most critical strategic objective** now.
-
 *   Provide the **most strategically advantageous** action plan as a series of clear steps using distinct paragraphs separated by two newlines. Use **bold text (double asterisks)** for key actions or suggested phrasing. **CRITICAL: Do NOT use numbered lists (1, 2, 3) or bullet points (-). Use PARAGRAPHS ONLY, separated by two newlines.**
 *   Address the query's *underlying goal*: Explain why this action plan is **strategically superior**.
 Focus ruthlessly on the best possible outcome.
-        ` // Note: Explicitly mentioned '\n\n' and double asterisks, reinforced NO LISTS
+        ` // Added STRATEGY_EFFECTIVENESS label, reinforced NO LISTS
     },
 ];
 
@@ -215,7 +215,8 @@ Your direct, concise, analytical response (approx 100-150 words, using two newli
                 console.error(`ROUTE Empty or invalid response from persona ${name} after cleaning for query: ${query}`);
                 return { persona: name, response: "[Analysis Error: Empty response received]" };
             }
-            if (/\b(analyze|behavior|color|center|realize|optimize)\b/i.test(text)) {
+            // *** CORRECTED REGEX FOR UK ENGLISH ***
+            if (/\b(analyse|behaviour|colour|centre|realise|optimise)\b/i.test(text)) {
                 console.warn(`ROUTE Potential US spelling detected in ${name} response.`);
             }
             return { persona: name, response: text };
@@ -279,18 +280,18 @@ ${validResponses.map(item => `Q: ${item.question}\nA: ${item.answer}`).join('\n\
         }
 
          const summaryPrompt = `
-      Based *only* on the analyses provided below, synthesize their critical conclusions into a unified verdict regarding the user's query about the context. Address 'you' directly. Use **plain British English**. Be direct, definitive, helpful. Use paragraph breaks (two newlines). **Emphasise key findings/actions using double asterisks.** Target 90-120 words.
+      Based *only* on the analyses provided below, synthesize their critical conclusions into a unified verdict regarding the user's query about the context. Address 'you' directly. Use **plain British English**. Be direct, definitive, helpful. Use paragraph breaks (two newlines). **Emphasise key findings/actions using double asterisks** where appropriate for clarity, but do not rely on it for structure. Target 90-120 words.
 
-      **CRITICAL FORMATTING REQUIREMENT:** Begin your response with a direct, concise verdict addressing the central question in bold (e.g., **"Verdict: You are not being unreasonable"**). This immediate judgment must be the first thing in your response. Ensure your verdict uses language that matches the original query format (AITA/AIBU/WIBTA) and clearly states your position with minimal hedging.
+      **CRITICAL FORMATTING REQUIREMENT:** Begin your response *immediately* with the label "VERDICT:" (uppercase, followed by a colon and a space) followed by a direct, concise verdict **specifically answering the user's original query**: "${query}". This label and the immediate judgment must be the very first thing in your response. State your position clearly with minimal hedging.
 
-      **CRITICAL:** NO persona names, NO meta-talk about summarizing, NO references to "the analyses" or "based on the analyses", NO greetings. Start directly with the bold verdict statement and then provide direct feedback as if speaking directly to the user.
+      **CRITICAL:** NO persona names, NO meta-talk about summarizing, NO references to "the analyses" or "based on the analyses", NO greetings. Start directly with the "VERDICT:" label and the verdict statement, then provide the rest of the direct feedback as if speaking directly to the user.
 
       Analyses Provided for Synthesis:
       ${validResponses.map(r => `### ${r.persona}\n${r.response}`).join('\n\n')}
       ${followUpSection}
 
       ---
-      Your Synthesized Verdict (starting with bold verdict statement):`; // Simplified prompt structure
+      Your Synthesized Verdict (starting with "VERDICT: "):`; // Updated prompt for label
        console.log(`--- FINAL Summary Prompt being sent (first 500 chars): ---`);
        console.log(summaryPrompt.substring(0, 500) + "...\n");
 
@@ -307,22 +308,22 @@ ${validResponses.map(item => `Q: ${item.question}\nA: ${item.answer}`).join('\n\
             const forbiddenWords = ["therapist", "analyst", "coach", "synthesis", "template", "summarize", "summary template"];
             const forbiddenStarts = ["okay, i understand", "here's a summary", "based on the analyses", "in summary,"];
             
-            // Check if the summary starts with a verdict statement (should be in bold)
-            const hasVerdictStart = summaryText.match(/^\s*\*\*\s*verdict\s*:/i) ||
-                                   summaryText.match(/^\s*\*\*\s*(you('re| are) (not )?being unreasonable|aita|aibu|wibta)/i);
+            // Check if the summary starts with the VERDICT: label (case-insensitive)
+            const hasVerdictStart = /^\s*VERDICT:/i.test(summaryText);
 
-            if ( !summaryText || summaryText.length < 20 || summaryText.length > 1000 || summaryText.startsWith("[") ||
+            if ( !summaryText || summaryText.length < 10 || summaryText.length > 1000 || summaryText.startsWith("[") ||
                  (!hasVerdictStart && (forbiddenWords.some(word => lowerCaseSummary.includes(word)) ||
                                       forbiddenStarts.some(start => lowerCaseSummary.startsWith(start)))) ) {
                  console.warn("ROUTE Generated summary seems invalid (failed checks or too short/long) after cleaning:", summaryText);
-                 console.warn("ROUTE Verdict format check:", hasVerdictStart ? "PASSED" : "FAILED - Missing bold verdict statement at start");
+                 console.warn("ROUTE Verdict format check:", hasVerdictStart ? "PASSED" : "FAILED - Missing 'VERDICT:' label at start"); // Updated warning
                  const failureReason = summaryText && summaryText.startsWith("[") ? summaryText : "[Summary generation failed - invalid content received]";
                  summaryText = failureReason;
                  const summaryErrorMsg = failureReason.replace(/^\[|\]$/g, '');
                  if (!errorMessage) errorMessage = summaryErrorMsg;
                  else if (!errorMessage.includes(summaryErrorMsg)) errorMessage += `; ${summaryErrorMsg}`;
             }
-            if (summaryText && /\b(analyze|behavior|color|center|realize|optimize)\b/i.test(summaryText)) {
+            // *** CORRECTED REGEX FOR UK ENGLISH ***
+            if (summaryText && /\b(analyse|behaviour|colour|centre|realise|optimise)\b/i.test(summaryText)) {
                 console.warn(`ROUTE Potential US spelling detected in Summary response.`);
             }
 

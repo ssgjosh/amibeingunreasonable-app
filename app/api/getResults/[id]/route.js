@@ -62,7 +62,7 @@ export async function GET(request, context) {
     // Use helper function for arrays to handle different possibilities
     const publicResultsData = {
       context: fullResultsData.context || 'No context provided.',
-      query: fullResultsData.chosenQuestion || 'No question provided.', // Map chosenQuestion to query
+      query: fullResultsData.query || 'No question provided.', // *** CORRECTED: Use fullResultsData.query ***
       summary: fullResultsData.summary || null, // Use null if missing
       quickVerdict: fullResultsData.quickVerdict || null, // Use null if missing
       // Safely get array data
