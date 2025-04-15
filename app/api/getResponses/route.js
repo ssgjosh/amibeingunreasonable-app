@@ -35,41 +35,39 @@ const personas = [
     {
         name: "Therapist (Interaction Dynamics)",
         prompt: `
-You are an objective psychotherapist analysing interaction dynamics described in the context. **Strictly adhere to British English spelling, grammar, and phrasing.** Address 'you' directly. Use paragraph breaks (two newlines: '\\n\\n') for readability, **bold text using double asterisks** for key insights, and lists *only if absolutely essential* for clarity. Be **concise**.
+You are an objective psychotherapist analysing interaction dynamics described in the context. **Strictly adhere to British English spelling, grammar, and phrasing.** Address 'you' directly. Use paragraph breaks (two newlines) for readability, **bold text using double asterisks** for key insights, and lists *only if absolutely essential* for clarity. Be **concise**.
 **Lead with your assessment of the core psychological dynamic at play in the situation.**
 Based *exclusively* on the provided context and considering the user's query:
 *   Identify the **primary psychological conflict** evident. **Validate objective concerns** first if applicable.
-\n\n
+
 *   Briefly analyse the likely **emotional drivers and assumptions** for **both** parties shown.
-\n\n
 *   Identify the main **communication breakdown** and **negative feedback loop**.
-\n\n
+
 *   Briefly reflect on any **apparent biases** evident in *your description*.
         ` // Note: Explicitly mentioned '\n\n' and double asterisks
     },
     {
         name: "Analyst (Logical Assessment)",
         prompt: `
-You are a ruthless logical analyst. **Strictly adhere to British English spelling, grammar, and phrasing.** Address 'you' directly. Use paragraph breaks (two newlines: '\\n\\n') and **bold text using double asterisks** for key terms/conclusions. **Be extremely concise and definitive.** NO hedging.
+You are a ruthless logical analyst. **Strictly adhere to British English spelling, grammar, and phrasing.** Address 'you' directly. Use paragraph breaks (two newlines) and **bold text using double asterisks** for key terms/conclusions. **Be extremely concise and definitive.** NO hedging.
 
 **Immediately state your definitive conclusion (Yes/No/Partially) to the user's query.**
 
 Then, justify this by assessing the logic: Identify any **Unsupported assumptions**. State the **Primary trigger**. Assess the **Proportionality** of the reaction. Evaluate the **Effectiveness** of your described reaction.
 
-Finally, reiterate your **Conclusion (Yes/No/Partially)**, summarising the core logical reason. **Avoid numbered lists**; use flowing paragraphs separated by '\\n\\n'.
+Finally, reiterate your **Conclusion (Yes/No/Partially)**, summarising the core logical reason. **Avoid numbered lists**; use flowing paragraphs separated by two newlines.
         ` // Note: Explicitly mentioned '\n\n' and double asterisks
     },
     {
         name: "Coach (Strategic Action)",
         prompt: `
-You are a results-oriented strategic coach. **Strictly adhere to British English spelling, grammar, and phrasing.** Address 'you' directly. Use paragraph breaks (two newlines: '\\n\\n') and **bold text using double asterisks** for key actions/wording. Use plain language. **Be concise.**
+You are a results-oriented strategic coach. **Strictly adhere to British English spelling, grammar, and phrasing.** Address 'you' directly. Use paragraph breaks (two newlines) and **bold text using double asterisks** for key actions/wording. Use plain language. **Be concise.**
 **Lead with your assessment of the current strategy's effectiveness.**
 *   State if current actions are **'effective'** or **'ineffective/counterproductive'**.
-\n\n
+
 *   Clearly state the **most critical strategic objective** now.
-\n\n
-*   Provide the **most strategically advantageous** action plan as a series of clear steps using distinct paragraphs separated by '\\n\\n'. Use **bold text (double asterisks)** for key actions or suggested phrasing. **CRITICAL: Do NOT use numbered lists (1, 2, 3) or bullet points (-). Use PARAGRAPHS ONLY, separated by '\\n\\n'.**
-\n\n
+
+*   Provide the **most strategically advantageous** action plan as a series of clear steps using distinct paragraphs separated by two newlines. Use **bold text (double asterisks)** for key actions or suggested phrasing. **CRITICAL: Do NOT use numbered lists (1, 2, 3) or bullet points (-). Use PARAGRAPHS ONLY, separated by two newlines.**
 *   Address the query's *underlying goal*: Explain why this action plan is **strategically superior**.
 Focus ruthlessly on the best possible outcome.
         ` // Note: Explicitly mentioned '\n\n' and double asterisks, reinforced NO LISTS
@@ -85,7 +83,7 @@ export async function POST(request) {
         console.error("ROUTE Error parsing request body:", e);
         return Response.json({ error: "Invalid request format. Ensure you are sending valid JSON." }, { status: 400 });
     }
-    const { context, query } = requestBody;
+    const { context, query, followUpResponses } = requestBody;
 
     console.log("ROUTE RECEIVED - Context Type:", typeof context, "Length:", context?.length);
     console.log("ROUTE RECEIVED - Query Type:", typeof query, "Length:", query?.length);
@@ -97,14 +95,14 @@ export async function POST(request) {
         return Response.json({ error: "Context description required (min 10 chars)." }, { status: 400 });
     }
     if (!query || typeof query !== 'string' || query.trim().length < 5) {
-       console.warn("ROUTE Validation failed: Query insufficient.");
-       return Response.json({ error: "Specific query/worry required (min 5 chars)." }, { status: 400 });
+        console.warn("ROUTE Validation failed: Query insufficient.");
+        return Response.json({ error: "Specific query/worry required (min 5 chars)." }, { status: 400 });
     }
 
     // --- API Key Check ---
     if (!process.env.GEMINI_API_KEY && !process.env.GOOGLE_API_KEY) {
-         console.error("ROUTE API Key Error: Env var missing.");
-         return Response.json({ error: "Server configuration error: API key missing." }, { status: 500 });
+        console.error("ROUTE API Key Error: Env var missing.");
+        return Response.json({ error: "Server configuration error: API key missing." }, { status: 500 });
     }
 
     const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-thinking-exp-01-21" });
@@ -143,13 +141,13 @@ export async function POST(request) {
         const rawParaphrase = paraphraseResponse.text ? paraphraseResponse.text() : '';
         console.log("ROUTE Raw Paraphrase:", JSON.stringify(rawParaphrase));
         paraphraseText = cleanApiResponseText(rawParaphrase);
-         if (!paraphraseText || paraphraseText.startsWith("[")) {
-             paraphraseText = "[Paraphrase generation failed]";
-             console.warn("Paraphrase generation returned error state or empty after cleaning.");
-         } else if (paraphraseText.split(' ').length > 35) {
-             console.warn("Generated paraphrase exceeded length constraint after cleaning.");
-         }
-         console.log("ROUTE Cleaned Paraphrase:", JSON.stringify(paraphraseText));
+        if (!paraphraseText || paraphraseText.startsWith("[")) {
+            paraphraseText = "[Paraphrase generation failed]";
+            console.warn("Paraphrase generation returned error state or empty after cleaning.");
+        } else if (paraphraseText.split(' ').length > 35) {
+            console.warn("Generated paraphrase exceeded length constraint after cleaning.");
+        }
+        console.log("ROUTE Cleaned Paraphrase:", JSON.stringify(paraphraseText));
     } catch (error) {
         console.error("ROUTE Error generating paraphrase:", error);
         if (error.message && error.message.includes("API key not valid")) { paraphraseText = "[Paraphrase Error: Invalid API Key]"; }
@@ -162,6 +160,22 @@ export async function POST(request) {
         console.log(`\n--- ROUTE: Constructing ${name} Prompt ---`);
         console.log(`Context available for ${name} prompt?`, !!context);
         console.log(`Query available for ${name} prompt?`, !!query);
+        // Prepare follow-up responses section if available
+        let followUpSection = '';
+        if (followUpResponses && Array.isArray(followUpResponses) && followUpResponses.length > 0) {
+            const validResponses = followUpResponses.filter(item =>
+                item && typeof item.question === 'string' && typeof item.answer === 'string' &&
+                item.question.trim() && item.answer.trim()
+            );
+            
+            if (validResponses.length > 0) {
+                followUpSection = `
+Additional Context from Follow-up Questions:
+${validResponses.map(item => `Q: ${item.question}\nA: ${item.answer}`).join('\n\n')}
+`;
+            }
+        }
+
         const fullPrompt = `
 ${prompt}
 
@@ -171,8 +185,9 @@ Context Provided:
 
 User's Specific Query/Worry about this Context:
 "${query}"
+${followUpSection}
 
-Your direct, concise, analytical response (approx 100-150 words, using \\n\\n for paragraphs and **bold text**):
+Your direct, concise, analytical response (approx 100-150 words, using two newlines for paragraph breaks and **bold text** for emphasis):
     `; // Simplified prompt structure slightly
         console.log(`--- FINAL ${name} Prompt being sent (first 400 chars): ---`);
         console.log(fullPrompt.substring(0, 400) + "...\n");
@@ -197,8 +212,8 @@ Your direct, concise, analytical response (approx 100-150 words, using \\n\\n fo
             }
 
             if (!text || text.length < 10) {
-                 console.error(`ROUTE Empty or invalid response from persona ${name} after cleaning for query: ${query}`);
-                 return { persona: name, response: "[Analysis Error: Empty response received]" };
+                console.error(`ROUTE Empty or invalid response from persona ${name} after cleaning for query: ${query}`);
+                return { persona: name, response: "[Analysis Error: Empty response received]" };
             }
             if (/\b(analyze|behavior|color|center|realize|optimize)\b/i.test(text)) {
                 console.warn(`ROUTE Potential US spelling detected in ${name} response.`);
@@ -235,7 +250,7 @@ Your direct, concise, analytical response (approx 100-150 words, using \\n\\n fo
             ? `Analysis failed. Issues: ${errorMessages.join('; ')}`
             : "Analysis failed: Could not generate insights from any perspective.";
         console.error("ROUTE: No valid persona responses generated. Returning 500.");
-         return Response.json({ error: errorMessage, responses: [], summary: '', paraphrase: paraphraseText }, { status: 500 });
+        return Response.json({ error: errorMessage, responses: [], summary: '', paraphrase: paraphraseText }, { status: 500 });
 
     } else if (errorMessages.length > 0) {
         errorMessage = `Analysis may be incomplete. Issues: ${errorMessages.join('; ')}`;
@@ -245,20 +260,39 @@ Your direct, concise, analytical response (approx 100-150 words, using \\n\\n fo
     // --- Generate Summary ---
     let summaryText = "[Summary generation failed]";
     if (validResponses.length > 0) {
-         console.log(`\n--- ROUTE: Constructing Summary Prompt ---`);
-         console.log(`Found ${validResponses.length} valid responses for summary.`);
+        console.log(`\n--- ROUTE: Constructing Summary Prompt ---`);
+        console.log(`Found ${validResponses.length} valid responses for summary.`);
+        // Prepare follow-up responses section if available
+        let followUpSection = '';
+        if (followUpResponses && Array.isArray(followUpResponses) && followUpResponses.length > 0) {
+            const validResponses = followUpResponses.filter(item =>
+                item && typeof item.question === 'string' && typeof item.answer === 'string' &&
+                item.question.trim() && item.answer.trim()
+            );
+            
+            if (validResponses.length > 0) {
+                followUpSection = `
+Additional Context from Follow-up Questions:
+${validResponses.map(item => `Q: ${item.question}\nA: ${item.answer}`).join('\n\n')}
+`;
+            }
+        }
+
          const summaryPrompt = `
-        Based *only* on the analyses provided below, synthesize their critical conclusions into a unified verdict regarding the user's query about the context. Address 'you' directly. Use **plain British English**. Be direct, definitive, helpful. Use paragraph breaks (\\n\\n). **Emphasise key findings/actions using double asterisks.** Target 90-120 words.
+      Based *only* on the analyses provided below, synthesize their critical conclusions into a unified verdict regarding the user's query about the context. Address 'you' directly. Use **plain British English**. Be direct, definitive, helpful. Use paragraph breaks (two newlines). **Emphasise key findings/actions using double asterisks.** Target 90-120 words.
 
-        **CRITICAL:** NO persona names, NO meta-talk about summarizing, NO greetings. Start directly with the synthesized verdict.
+      **CRITICAL FORMATTING REQUIREMENT:** Begin your response with a direct, concise verdict addressing the central question in bold (e.g., **"Verdict: You are not being unreasonable"**). This immediate judgment must be the first thing in your response. Ensure your verdict uses language that matches the original query format (AITA/AIBU/WIBTA) and clearly states your position with minimal hedging.
 
-        Analyses Provided for Synthesis:
-        ${validResponses.map(r => `### ${r.persona}\n${r.response}`).join('\n\n')}
+      **CRITICAL:** NO persona names, NO meta-talk about summarizing, NO references to "the analyses" or "based on the analyses", NO greetings. Start directly with the bold verdict statement and then provide direct feedback as if speaking directly to the user.
 
-        ---
-        Your Synthesized Verdict:`; // Simplified prompt structure
-         console.log(`--- FINAL Summary Prompt being sent (first 500 chars): ---`);
-         console.log(summaryPrompt.substring(0, 500) + "...\n");
+      Analyses Provided for Synthesis:
+      ${validResponses.map(r => `### ${r.persona}\n${r.response}`).join('\n\n')}
+      ${followUpSection}
+
+      ---
+      Your Synthesized Verdict (starting with bold verdict statement):`; // Simplified prompt structure
+       console.log(`--- FINAL Summary Prompt being sent (first 500 chars): ---`);
+       console.log(summaryPrompt.substring(0, 500) + "...\n");
 
         try {
             // *** Apply specific config ***
@@ -272,9 +306,16 @@ Your direct, concise, analytical response (approx 100-150 words, using \\n\\n fo
             const lowerCaseSummary = summaryText.toLowerCase();
             const forbiddenWords = ["therapist", "analyst", "coach", "synthesis", "template", "summarize", "summary template"];
             const forbiddenStarts = ["okay, i understand", "here's a summary", "based on the analyses", "in summary,"];
+            
+            // Check if the summary starts with a verdict statement (should be in bold)
+            const hasVerdictStart = summaryText.match(/^\s*\*\*\s*verdict\s*:/i) ||
+                                   summaryText.match(/^\s*\*\*\s*(you('re| are) (not )?being unreasonable|aita|aibu|wibta)/i);
 
-            if ( !summaryText || summaryText.length < 20 || summaryText.length > 1000 || summaryText.startsWith("[") || forbiddenWords.some(word => lowerCaseSummary.includes(word)) || forbiddenStarts.some(start => lowerCaseSummary.startsWith(start)) ) {
+            if ( !summaryText || summaryText.length < 20 || summaryText.length > 1000 || summaryText.startsWith("[") ||
+                 (!hasVerdictStart && (forbiddenWords.some(word => lowerCaseSummary.includes(word)) ||
+                                      forbiddenStarts.some(start => lowerCaseSummary.startsWith(start)))) ) {
                  console.warn("ROUTE Generated summary seems invalid (failed checks or too short/long) after cleaning:", summaryText);
+                 console.warn("ROUTE Verdict format check:", hasVerdictStart ? "PASSED" : "FAILED - Missing bold verdict statement at start");
                  const failureReason = summaryText && summaryText.startsWith("[") ? summaryText : "[Summary generation failed - invalid content received]";
                  summaryText = failureReason;
                  const summaryErrorMsg = failureReason.replace(/^\[|\]$/g, '');
@@ -300,21 +341,22 @@ Your direct, concise, analytical response (approx 100-150 words, using \\n\\n fo
         console.warn("ROUTE Skipping summary generation as there were no valid persona responses (already handled).");
         summaryText = "[Summary generation skipped - no valid analysis provided]";
         const skipMsg = "Summary generation skipped";
-         if (!errorMessage) errorMessage = skipMsg;
-         else if (!errorMessage.includes(skipMsg)) errorMessage += "; " + skipMsg;
+        if (!errorMessage) errorMessage = skipMsg;
+        else if (!errorMessage.includes(skipMsg)) errorMessage += "; " + skipMsg;
     }
 
     if (paraphraseText.startsWith("[") && (!errorMessage || !errorMessage.includes("Paraphrase Error"))) {
-         const paraphraseErrorMsg = paraphraseText.replace(/^\[|\]$/g, '');
-          if (!errorMessage) errorMessage = paraphraseErrorMsg;
-          else if (!errorMessage.includes(paraphraseErrorMsg)) errorMessage += "; " + paraphraseErrorMsg;
-     }
+        const paraphraseErrorMsg = paraphraseText.replace(/^\[|\]$/g, '');
+        if (!errorMessage) errorMessage = paraphraseErrorMsg;
+        else if (!errorMessage.includes(paraphraseErrorMsg)) errorMessage += "; " + paraphraseErrorMsg;
+    }
 
     console.log("ROUTE Returning final response to frontend:", { error: errorMessage, summary: summaryText.substring(0,50)+"...", paraphrase: paraphraseText.substring(0,50)+"...", responsesCount: validResponses.length });
     return Response.json({
         responses: validResponses,
         summary: summaryText,
         paraphrase: paraphraseText,
-        error: errorMessage
+        error: errorMessage,
+        followUpIncluded: !!(followUpResponses && Array.isArray(followUpResponses) && followUpResponses.length > 0)
     });
 }
