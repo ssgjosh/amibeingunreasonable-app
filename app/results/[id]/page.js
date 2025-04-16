@@ -64,6 +64,8 @@ const DocumentTextIcon = () => <IconWrapper><svg xmlns="http://www.w3.org/2000/s
 const ChatBubbleLeftEllipsisIcon = () => <IconWrapper><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0h-.375M21 12c0 4.556-3.03 8.25-6.75 8.25a9.753 9.753 0 0 1-4.75-1.195A9.753 9.753 0 0 1 3 12c0-4.556 3.03-8.25 6.75-8.25a9.753 9.753 0 0 1 4.75 1.195A9.753 9.753 0 0 1 21 12Z" /></svg></IconWrapper>;
 const SparklesIcon = ({className="w-5 h-5 inline-block align-middle"}) => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}><path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L1.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456ZM16.894 20.567 16.5 21.75l-.394-1.183a2.25 2.25 0 0 0-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 0 0 1.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 0 0 1.423 1.423l1.183.394-1.183.394a2.25 2.25 0 0 0-1.423 1.423Z" /></svg>;
 const ArrowRightIcon = () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 ml-1.5"><path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" /></svg>;
+const PaperAirplaneIcon = () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M6 12 3.269 3.125A59.769 59.769 0 0 1 21.485 12 59.768 59.768 0 0 1 3.27 20.875L5.999 12Zm0 0h7.5" /></svg>;
+const ChatBubbleOvalLeftEllipsisIcon = () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 inline-block mr-1.5 align-text-bottom"><path strokeLinecap="round" strokeLinejoin="round" d="M18 12.75H6M21 12.75c0 5.25-4.75 9.75-10.5 9.75S0 18 0 12.75C0 7.5 4.75 3 10.5 3S21 7.5 21 12.75Z" /></svg>;
 
 
 // --- Helper Function to Clean Response Text ---
@@ -112,6 +114,14 @@ export default function SharedResultPage() {
     const [selectedPersona, setSelectedPersona] = useState(null);
     const [isSwitchingPersona, setIsSwitchingPersona] = useState(false);
     const detailViewRef = useRef(null);
+
+    // --- State for Follow-up Conversation ---
+    const [followUpPersonaId, setFollowUpPersonaId] = useState(null); // ID of the persona locked for follow-up
+    const [followUpQuestion, setFollowUpQuestion] = useState(''); // Current question input
+    const [followUpConversation, setFollowUpConversation] = useState([]); // Array of { question: string, answer: string }
+    const [isFollowUpLoading, setIsFollowUpLoading] = useState(false); // Loading state for follow-up API call
+    const [followUpError, setFollowUpError] = useState(null); // Error state for follow-up API call
+    const followUpEndRef = useRef(null); // Ref to scroll to the end of the conversation
 
     useEffect(() => {
         if (!id) {
@@ -171,6 +181,11 @@ export default function SharedResultPage() {
         fetchResults();
     }, [id]);
 
+    // Scroll to bottom of follow-up conversation when it updates
+    useEffect(() => {
+        followUpEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, [followUpConversation]);
+
     const handleSelectPersona = (persona) => {
         if (persona === selectedPersona || isSwitchingPersona) return;
         setIsSwitchingPersona(true);
@@ -190,6 +205,70 @@ export default function SharedResultPage() {
             }, 50);
         }, 150);
     };
+
+    // --- Function to initiate follow-up ---
+    const handleStartFollowUp = (personaId) => {
+        setFollowUpPersonaId(personaId);
+        setFollowUpConversation([]); // Reset conversation history
+        setFollowUpError(null); // Clear previous errors
+        setFollowUpQuestion(''); // Clear any lingering input
+    };
+
+    // --- Function to send follow-up question ---
+    const handleSendFollowUp = async (e) => {
+        e.preventDefault(); // Prevent default form submission
+        if (!followUpQuestion.trim() || !followUpPersonaId || isFollowUpLoading) return;
+
+        setIsFollowUpLoading(true);
+        setFollowUpError(null);
+        const currentQuestion = followUpQuestion; // Capture question before clearing input
+
+        try {
+            const res = await fetch('/api/askFollowUp', { // NEW API Endpoint
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    question: currentQuestion,
+                    personaId: followUpPersonaId,
+                    originalContextId: id,
+                    // Optionally send previous conversation history if needed by the API
+                    // history: followUpConversation
+                }),
+            });
+
+            if (!res.ok) {
+                let errorDetail = `API responded with status ${res.status}`;
+                try {
+                    const errorJson = await res.json();
+                    errorDetail = errorJson.error || JSON.stringify(errorJson);
+                } catch {
+                    // Ignore if response is not JSON
+                }
+                throw new Error(errorDetail);
+            }
+
+            const data = await res.json();
+
+            if (!data.answer) {
+                throw new Error("API response did not contain an answer.");
+            }
+
+            // Add Q&A pair to conversation history
+            setFollowUpConversation(prev => [...prev, { question: currentQuestion, answer: data.answer }]);
+            setFollowUpQuestion(''); // Clear input field
+
+        } catch (err) {
+            console.error("Error sending follow-up question:", err);
+            setFollowUpError(err.message || "An unknown error occurred.");
+            // Optionally keep the question in the input field on error:
+            // setFollowUpQuestion(currentQuestion);
+        } finally {
+            setIsFollowUpLoading(false);
+        }
+    };
+
 
     // Ensure resultsData and resultsData.responses exist before finding
     const selectedResponse = (resultsData && Array.isArray(resultsData.responses))
@@ -333,9 +412,11 @@ export default function SharedResultPage() {
                             {Array.isArray(resultsData.responses) && resultsData.responses.some(r => r?.response && !r.response.startsWith("[")) && (
                                 <div className="border-t border-slate-700/40 pt-10 md:pt-12">
                                     <h2 className="text-2xl md:text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-teal-300 to-cyan-400 mb-8 text-center tracking-tight">Detailed Analysis Perspectives</h2>
+                                    {/* Persona Selection Buttons */}
                                     <div className="flex justify-center flex-wrap gap-3 sm:gap-4 mb-10 border-b border-slate-700/40 pb-6">
                                          {resultsData.responses.map((r) => ( r?.response && !r.response.startsWith("[") && <button key={r.persona} onClick={() => handleSelectPersona(r.persona)} className={`px-5 py-2 text-sm font-medium rounded-full transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2 focus:ring-offset-slate-800 whitespace-nowrap transform hover:scale-103 active:scale-100 ${ selectedPersona === r.persona ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-lg ring-2 ring-offset-1 ring-cyan-400 scale-105' : 'text-slate-200 bg-slate-700/40 hover:bg-slate-600/60 border border-slate-600/60' }`} > {r.persona.split('(')[0].trim()} </button> ))}
                                      </div>
+                                    {/* Detailed View & Follow-up Area */}
                                     <div ref={detailViewRef} className={`transition-opacity duration-300 ease-in-out ${isSwitchingPersona ? 'opacity-30' : 'opacity-100'}`} >
                                         {selectedResponse && !selectedResponse.response.startsWith("[") && (
                                             <div key={selectedPersona} className="bg-white text-slate-900 rounded-2xl p-6 md:p-8 shadow-xl border border-slate-300 max-w-3xl mx-auto animate-fadeIn mb-10">
@@ -346,6 +427,79 @@ export default function SharedResultPage() {
                                                     {/* Uses the updated cleanResponseText function */}
                                                     <MarkdownRenderer content={cleanResponseText(selectedResponse.response)} isDark={false} />
                                                 </div>
+
+                                                {/* --- Follow-up Section --- */}
+                                                <div className="mt-8 pt-6 border-t border-slate-200">
+                                                    {/* Show "Start Follow-up" button ONLY if no follow-up is active */}
+                                                    {followUpPersonaId === null && (
+                                                        <button
+                                                            onClick={() => handleStartFollowUp(selectedResponse.persona)}
+                                                            className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-cyan-600 to-blue-700 border border-transparent rounded-md shadow-sm hover:from-cyan-700 hover:to-blue-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 focus:ring-offset-white"
+                                                        >
+                                                            <ChatBubbleOvalLeftEllipsisIcon /> Ask follow-up with {selectedResponse.persona.split('(')[0].trim()}
+                                                        </button>
+                                                    )}
+
+                                                    {/* Show Follow-up UI ONLY if this persona is selected for follow-up */}
+                                                    {followUpPersonaId === selectedResponse.persona && (
+                                                        <div className="space-y-6">
+                                                            <h4 className="text-lg font-semibold text-slate-700">Continue conversation with {followUpPersonaId.split('(')[0].trim()}:</h4>
+
+                                                            {/* Conversation History */}
+                                                            <div className="space-y-4 max-h-96 overflow-y-auto pr-2 bg-slate-50 p-4 rounded-lg border border-slate-200">
+                                                                {followUpConversation.map((item, index) => (
+                                                                    <div key={index} className="text-sm">
+                                                                        <p className="font-semibold text-slate-600 mb-1">You:</p>
+                                                                        <p className="mb-3 text-slate-800 whitespace-pre-wrap">{item.question}</p>
+                                                                        <p className="font-semibold text-cyan-700 mb-1">{followUpPersonaId.split('(')[0].trim()}:</p>
+                                                                        <div className="text-slate-800">
+                                                                            <MarkdownRenderer content={item.answer} isDark={false} className="prose-sm" />
+                                                                        </div>
+                                                                        {index < followUpConversation.length - 1 && <hr className="my-4 border-slate-200" />}
+                                                                    </div>
+                                                                ))}
+                                                                {/* Display loading indicator during API call */}
+                                                                {isFollowUpLoading && (
+                                                                    <div className="flex items-center justify-center p-3 text-slate-500">
+                                                                        <LoadingSpinner className="h-4 w-4 mr-2 text-cyan-600" />
+                                                                        <span>Getting response...</span>
+                                                                    </div>
+                                                                )}
+                                                                {/* Display error message if API call failed */}
+                                                                {followUpError && (
+                                                                    <div className="mt-3">
+                                                                        <Alert type="error" title="Follow-up Error" message={followUpError} />
+                                                                    </div>
+                                                                )}
+                                                                {/* Invisible element to scroll to */}
+                                                                <div ref={followUpEndRef} />
+                                                            </div>
+
+                                                            {/* Follow-up Input Form */}
+                                                            <form onSubmit={handleSendFollowUp} className="flex items-start space-x-3">
+                                                                <textarea
+                                                                    value={followUpQuestion}
+                                                                    onChange={(e) => setFollowUpQuestion(e.target.value)}
+                                                                    placeholder={`Ask ${followUpPersonaId.split('(')[0].trim()} another question...`}
+                                                                    rows="3"
+                                                                    className="flex-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-cyan-500 focus:ring-cyan-500 sm:text-sm p-2 resize-none disabled:opacity-50 disabled:bg-slate-100"
+                                                                    disabled={isFollowUpLoading}
+                                                                    required
+                                                                />
+                                                                <button
+                                                                    type="submit"
+                                                                    className="inline-flex items-center justify-center px-4 py-2 h-[calc(3*1.5rem+1rem)] border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-cyan-600 hover:bg-cyan-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                                    disabled={isFollowUpLoading || !followUpQuestion.trim()}
+                                                                >
+                                                                    {isFollowUpLoading ? <LoadingSpinner className="h-5 w-5" /> : <PaperAirplaneIcon />}
+                                                                    <span className="sr-only">Send</span>
+                                                                </button>
+                                                            </form>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                {/* --- End Follow-up Section --- */}
+
                                             </div>
                                         )}
                                          {!selectedResponse && Array.isArray(resultsData.responses) && resultsData.responses.some(r => r?.response && !r.response.startsWith("[")) && ( <div className="text-center text-slate-500 italic mt-4">Select a perspective above to view details.</div> )}

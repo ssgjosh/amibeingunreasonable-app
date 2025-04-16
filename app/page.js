@@ -1,11 +1,12 @@
 "use client";
 import { useState, useEffect, useRef, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
+import { cleanResponseText } from '../lib/utils'; // Import the function
 
 // --- Components ---
 
-const LoadingSpinner = () => (
-    <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+const LoadingSpinner = ({ className = "h-5 w-5 text-white" }) => ( // Added default className
+    <svg className={`animate-spin ${className}`} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
     </svg>
@@ -16,10 +17,11 @@ const Alert = ({ type = 'error', title, message }) => {
     const colors = {
         error: 'bg-red-900/40 border-red-600/70 text-red-200',
         warning: 'bg-yellow-900/40 border-yellow-600/70 text-yellow-200',
+        info: 'bg-blue-900/40 border-blue-600/70 text-blue-200', // Added info style
     };
     const displayMessage = typeof message === 'string' && message.trim() !== '' ? message : "An unspecified error occurred or no details were provided.";
     return (
-        <div className={`border-l-4 p-4 rounded-lg shadow-sm ${colors[type]}`} role="alert">
+        <div className={`border-l-4 p-4 rounded-lg shadow-sm ${colors[type] || colors.info}`} role="alert">
             {title && <p className="font-bold mb-1">{title}</p>}
             <p>{displayMessage}</p>
         </div>
@@ -33,6 +35,9 @@ const MarkdownRenderer = ({ content, className = "", isDark = false }) => {
     const textStyles = isDark
         ? "prose-p:text-slate-200 prose-strong:text-white prose-a:text-cyan-400 hover:prose-a:text-cyan-300 prose-blockquote:text-slate-300 prose-blockquote:border-slate-600 prose-code:text-pink-300 prose-headings:text-slate-100 prose-ul:text-slate-200 prose-ol:text-slate-200 prose-li:text-slate-200" // Dark background styles
         : "prose-p:text-slate-700 prose-strong:text-slate-900 prose-a:text-cyan-700 hover:prose-a:text-cyan-600 prose-blockquote:text-slate-600 prose-blockquote:border-slate-400 prose-code:text-pink-700 prose-headings:text-slate-800 prose-ul:text-slate-700 prose-ol:text-slate-700 prose-li:text-slate-700"; // Light background styles (increased contrast)
+
+    // Ensure content is a string before rendering
+    const safeContent = typeof content === 'string' ? content : '';
 
     return (
         <div className={`${baseProseClass} ${themeProseClass} ${textStyles} ${className}`}>
@@ -48,11 +53,12 @@ const MarkdownRenderer = ({ content, className = "", isDark = false }) => {
                     code: ({ node, ...props }) => <code className={`px-1 py-0.5 rounded text-sm ${isDark ? 'bg-black/20' : 'bg-slate-200'}`} {...props} />,
                 }}
             >
-                {content || ""}
+                {safeContent}
             </ReactMarkdown>
         </div>
     );
 };
+
 
 // *** UPDATED LoadingScreen Messages - More Personality, Wit & UK English ***
 const LoadingScreen = ({ isApiComplete, isTakingLong }) => {
@@ -204,6 +210,9 @@ const IconWrapper = ({ children }) => <span className="inline-block mr-2 text-sl
 const DocumentTextIcon = () => <IconWrapper><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" /></svg></IconWrapper>;
 const ChatBubbleLeftEllipsisIcon = () => <IconWrapper><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0h-.375M21 12c0 4.556-3.03 8.25-6.75 8.25a9.753 9.753 0 0 1-4.75-1.195A9.753 9.753 0 0 1 3 12c0-4.556 3.03-8.25 6.75-8.25a9.753 9.753 0 0 1 4.75 1.195A9.753 9.753 0 0 1 21 12Z" /></svg></IconWrapper>;
 const SparklesIcon = ({className="w-5 h-5 inline-block"}) => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}><path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L1.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456ZM16.894 20.567 16.5 21.75l-.394-1.183a2.25 2.25 0 0 0-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 0 0 1.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 0 0 1.423 1.423l1.183.394-1.183.394a2.25 2.25 0 0 0-1.423 1.423Z" /></svg>;
+const ArrowRightIcon = () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 ml-1.5"><path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" /></svg>; // Added for CTA button
+const PaperAirplaneIcon = () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M6 12 3.269 3.125A59.769 59.769 0 0 1 21.485 12 59.768 59.768 0 0 1 3.27 20.875L5.999 12Zm0 0h7.5" /></svg>; // Added for follow-up send
+const ChatBubbleOvalLeftEllipsisIcon = () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 inline-block mr-1.5 align-text-bottom"><path strokeLinecap="round" strokeLinejoin="round" d="M18 12.75H6M21 12.75c0 5.25-4.75 9.75-10.5 9.75S0 18 0 12.75C0 7.5 4.75 3 10.5 3S21 7.5 21 12.75Z" /></svg>; // Added for follow-up button
 
 // Animated Placeholder Component
 const AnimatedPlaceholder = ({ isActive }) => {
@@ -212,7 +221,7 @@ const AnimatedPlaceholder = ({ isActive }) => {
     const [currentPhraseIndex, setCurrentPhraseIndex] = useState(0);
     const [currentCharIndex, setCurrentCharIndex] = useState(0);
     const animationRef = useRef(null);
-    
+
     // Example phrases to cycle through
     const examplePhrases = [
         "My flatmate never does the washing up...",
@@ -221,7 +230,7 @@ const AnimatedPlaceholder = ({ isActive }) => {
         "I told my friend her new haircut doesn't suit her...",
         "My neighbor keeps parking in my designated spot..."
     ];
-    
+
     const resetAnimation = useCallback(() => {
         if (animationRef.current) {
             clearTimeout(animationRef.current);
@@ -230,16 +239,16 @@ const AnimatedPlaceholder = ({ isActive }) => {
         setCurrentCharIndex(0);
         setIsTyping(true);
     }, []);
-    
+
     // Handle typing animation
     useEffect(() => {
         if (!isActive) {
             resetAnimation();
             return;
         }
-        
+
         const currentPhrase = examplePhrases[currentPhraseIndex];
-        
+
         if (isTyping) {
             // Typing forward
             if (currentCharIndex < currentPhrase.length) {
@@ -267,16 +276,16 @@ const AnimatedPlaceholder = ({ isActive }) => {
                 setIsTyping(true);
             }
         }
-        
+
         return () => {
             if (animationRef.current) {
                 clearTimeout(animationRef.current);
             }
         };
     }, [isActive, currentCharIndex, currentPhraseIndex, isTyping, examplePhrases, resetAnimation]);
-    
+
     if (!isActive) return null;
-    
+
     return (
         <div className="absolute inset-0 pointer-events-none flex items-start p-4">
             <div className="text-slate-500 text-xl font-light animate-pulse-slow">
@@ -317,7 +326,16 @@ export default function Home() {
     const [isApiComplete, setIsApiComplete] = useState(false);
     const [isTakingLong, setIsTakingLong] = useState(false);
     const longLoadTimeoutRef = useRef(null);
-    const detailViewRef = useRef(null);
+    const detailViewRef = useRef(null); // Ref for detailed view card
+    const resultsSectionRef = useRef(null); // Ref for scrolling to results
+
+    // --- State for Follow-up Conversation (Added Here) ---
+    const [followUpPersonaId, setFollowUpPersonaId] = useState(null); // ID of the persona locked for follow-up
+    const [followUpQuestion, setFollowUpQuestion] = useState(''); // Current question input
+    const [followUpConversation, setFollowUpConversation] = useState([]); // Array of { question: string, answer: string }
+    const [isFollowUpLoading, setIsFollowUpLoading] = useState(false); // Loading state for follow-up API call
+    const [followUpError, setFollowUpError] = useState(null); // Error state for follow-up API call
+    const followUpEndRef = useRef(null); // Ref to scroll to the end of the conversation
 
     console.log(`Current view state: ${view}`);
 
@@ -400,10 +418,10 @@ const generateFollowUpQuestions = async () => {
                 initialAnswers[index] = '';
             });
             setFollowUpAnswers(initialAnswers);
-            
+
             // Since askAI now checks skipFollowUpQuestions *before* calling this,
             // if we get here, we always intend to show the follow-up view.
-            setView('followup'); 
+            setView('followup');
             return true; // Indicate success in generating questions
 
         } else {
@@ -435,7 +453,7 @@ const handleFollowUpAnswerChange = (index, value) => {
 const proceedToAnalysis = async (answers = followUpAnswers) => {
     console.log("proceedToAnalysis triggered");
     const finalQuery = queryToSend.trim();
-    
+
     console.log("Resetting states...");
     setError(null); setResponses([]); setSummary(''); setParaphrase(''); setSelectedPersona(null);
     setIsApiComplete(false); setIsTakingLong(false); setLoading(true); setView('loading');
@@ -465,7 +483,7 @@ const proceedToAnalysis = async (answers = followUpAnswers) => {
                  followUpResponses // Send even if empty
              })
         });
-        
+
         // Rest of the API call handling...
         clearTimeout(longLoadTimeoutRef.current); console.log(`API response status: ${res.status}`);
         if (!res.ok) {
@@ -494,452 +512,649 @@ const proceedToAnalysis = async (answers = followUpAnswers) => {
     } finally {
         console.log("Entering finally block..."); setIsApiComplete(true); setError(typeof apiError === 'string' ? apiError : null);
         console.log(`Final error state set to: ${typeof apiError === 'string' ? apiError : null}`);
-        setTimeout(() => { console.log("Setting loading=false, view='results'"); setLoading(false); setView('results'); setHasAnalysed(true); }, 400);
+        setTimeout(() => {
+            console.log("Setting loading=false, view='results'");
+            setLoading(false);
+            setView('results');
+            setHasAnalysed(true);
+            // Scroll to results after setting view
+            requestAnimationFrame(() => {
+                resultsSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            });
+        }, 400);
     }
-    
+
     return true; // Indicate analysis was attempted
 };
 
-// *** askAI function - Modified to check skip before generating follow-ups ***
+// *** Main function to trigger analysis (handles follow-up check) ***
 const askAI = async () => {
     console.log("askAI triggered");
-    const finalQuery = queryToSend.trim(); // Use the state derived from dropdown/input
+    const finalQuery = queryToSend.trim();
 
-    if (!context.trim() || context.trim().length < 10) { setError("Context needed (min 10 chars)."); return; }
-    // *** Validate the final query string ***
+    // Validation
+    if (!context.trim() || context.trim().length < 10) {
+        setError("Please provide more detail about the situation (min 10 characters).");
+        return;
+    }
     if (!finalQuery || finalQuery.length < 5) {
-         setError("Question needed (min 5 chars). Select an option or type your own.");
-         return;
+        setError("Please select a question or type your specific query (min 5 characters).");
+        return;
     }
 
-    // --- NEW: Check if skipping follow-ups FIRST ---
+    setError(null); // Clear previous errors
+
+    // Check if user wants to skip follow-up questions
     if (skipFollowUpQuestions) {
         console.log("Skipping follow-up questions, proceeding directly to analysis.");
-        // Pass current answers (likely empty), proceedToAnalysis handles empty followUpQuestions array
-        await proceedToAnalysis(followUpAnswers); 
-        return; // Stop askAI here, proceedToAnalysis handles the rest
+        await proceedToAnalysis({}); // Proceed with empty answers
+    } else {
+        console.log("Attempting to generate follow-up questions.");
+        // Attempt to generate follow-up questions.
+        // generateFollowUpQuestions will either set view='followup' or call proceedToAnalysis itself.
+        await generateFollowUpQuestions();
     }
-    // --- END NEW ---
-
-    // If we haven't generated follow-up questions yet (and not skipping), do that first
-    if (followUpQuestions.length === 0 && view === 'input') {
-        const success = await generateFollowUpQuestions();
-        // If generateFollowUpQuestions returned false, it means it either failed
-        // or it generated no questions and *already* called proceedToAnalysis.
-        // In either case, askAI should stop here.
-        if (!success) return; 
-        // If success is true, it means questions were generated and view is set to 'followup'.
-        // Stop askAI here to allow user to answer.
-        return; 
-    }
-
-    // If we're in the follow-up view, proceed to analysis
-    if (view === 'followup') {
-        await proceedToAnalysis();
-        return; // Stop askAI here
-    }
-
-    // Fallback path (should ideally not be reached with the new logic)
-    console.warn("askAI reached fallback path, proceeding to analysis.");
-    await proceedToAnalysis();
 };
 
-    // --- handleRestart - Reset query states too ---
-    const handleRestart = () => {
-         console.log("Restarting...");
-         setContext('');
-         setSelectedQueryOption(''); // Reset dropdown
-         setCustomQuery(''); // Reset custom field
-         setQueryToSend(''); // Reset final query
-         // Reset follow-up questions state
-         setFollowUpQuestions([]);
-         setFollowUpAnswers({});
-         // setFollowUpQuestionsReviewed(false); // Removed this state
-         setSkipFollowUpQuestions(false); // Reset skip follow-up questions state
-         setResponses([]); setSummary(''); setParaphrase(''); setError(null); setSelectedPersona(null); setHasAnalysed(false); setView('input'); setLoading(false); setIsApiComplete(false); setIsTakingLong(false);
-         if (longLoadTimeoutRef.current) clearTimeout(longLoadTimeoutRef.current);
-         window.scrollTo(0, 0);
-    };
+// *** Handle Restart ***
+const handleRestart = () => {
+    console.log("handleRestart triggered");
+    setContext('');
+    setSelectedQueryOption('');
+    setCustomQuery('');
+    setQueryToSend('');
+    setResponses([]);
+    setSummary('');
+    setParaphrase('');
+    setError(null);
+    setView('input');
+    setLoading(false);
+    setHasAnalysed(false);
+    setSelectedPersona(null);
+    setShareableLink('');
+    setIsSharing(false);
+    setCopySuccess('');
+    setIsApiComplete(false);
+    setIsTakingLong(false);
+    if (longLoadTimeoutRef.current) clearTimeout(longLoadTimeoutRef.current);
+    // Reset follow-up states
+    setFollowUpQuestions([]);
+    setFollowUpAnswers({});
+    setIsGeneratingFollowUps(false);
+    setSkipFollowUpQuestions(false);
+    // Reset follow-up conversation states
+    setFollowUpPersonaId(null);
+    setFollowUpQuestion('');
+    setFollowUpConversation([]);
+    setIsFollowUpLoading(false);
+    setFollowUpError(null);
+};
 
-    // --- handleSelectPersona (Unchanged) ---
-    const handleSelectPersona = (persona) => {
-        console.log(`Selecting persona: ${persona}`);
-        if (persona === selectedPersona || isSwitchingPersona) return;
-
-        setIsSwitchingPersona(true);
-
-        if (detailViewRef.current) {
-            detailViewRef.current.classList.remove('animate-fadeIn');
-            void detailViewRef.current.offsetWidth;
-        }
-
+// *** Handle Persona Selection in Results View ***
+const handleSelectPersona = (persona) => {
+    if (persona === selectedPersona || isSwitchingPersona) return;
+    setIsSwitchingPersona(true);
+    if (detailViewRef.current) {
+        detailViewRef.current.classList.remove('animate-fadeIn');
+        void detailViewRef.current.offsetWidth; // Trigger reflow
+    }
+    setTimeout(() => {
+        setSelectedPersona(persona);
         setTimeout(() => {
-            setSelectedPersona(persona);
-            setTimeout(() => {
-                setIsSwitchingPersona(false);
-                requestAnimationFrame(() => {
-                    if (detailViewRef.current) {
-                        detailViewRef.current.classList.add('animate-fadeIn');
-                    }
-                });
-            }, 50);
-        }, 150);
-    };
+            setIsSwitchingPersona(false);
+            requestAnimationFrame(() => {
+                if (detailViewRef.current) {
+                    detailViewRef.current.classList.add('animate-fadeIn');
+                }
+            });
+        }, 50); // Short delay for state update
+    }, 150); // Delay for fade out animation
+};
 
-    // *** Function to handle sharing ***
-    const handleShare = async () => {
-        if (!context || !queryToSend || !responses || responses.length === 0) {
-            console.warn("Attempted to share without complete results data.");
-            setCopySuccess('Cannot share yet - results missing.'); // Provide feedback
-            setTimeout(() => setCopySuccess(''), 3000);
-            return;
+// --- Follow-up Conversation Handlers (Added Here) ---
+
+// Scroll to bottom of follow-up conversation when it updates
+useEffect(() => {
+    followUpEndRef.current?.scrollIntoView({ behavior: "smooth" });
+}, [followUpConversation]);
+
+// Function to initiate follow-up
+const handleStartFollowUp = (personaId) => {
+    setFollowUpPersonaId(personaId);
+    setFollowUpConversation([]); // Reset conversation history
+    setFollowUpError(null); // Clear previous errors
+    setFollowUpQuestion(''); // Clear any lingering input
+};
+
+// Function to send follow-up question
+const handleSendFollowUp = async (e) => {
+    e.preventDefault(); // Prevent default form submission
+    if (!followUpQuestion.trim() || !followUpPersonaId || isFollowUpLoading) return;
+
+    setIsFollowUpLoading(true);
+    setFollowUpError(null);
+    const currentQuestion = followUpQuestion; // Capture question before clearing input
+
+    try {
+        const res = await fetch('/api/askFollowUp', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                question: currentQuestion,
+                personaId: followUpPersonaId,
+                // Send current context and query directly instead of ID
+                context: context,
+                query: queryToSend,
+                history: followUpConversation // Send history for context
+            }),
+        });
+
+        if (!res.ok) {
+            let errorDetail = `API responded with status ${res.status}`;
+            try {
+                const errorJson = await res.json();
+                errorDetail = errorJson.error || JSON.stringify(errorJson);
+            } catch { /* Ignore if response is not JSON */ }
+            throw new Error(errorDetail);
         }
 
-        setIsSharing(true);
-        setShareableLink('');
-        setCopySuccess('');
+        const data = await res.json();
 
-        // Consolidate data to be saved
+        if (!data.answer) {
+            throw new Error("API response did not contain an answer.");
+        }
+
+        // Add Q&A pair to conversation history
+        setFollowUpConversation(prev => [...prev, { question: currentQuestion, answer: data.answer }]);
+        setFollowUpQuestion(''); // Clear input field
+
+    } catch (err) {
+        console.error("Error sending follow-up question:", err);
+        setFollowUpError(err.message || "An unknown error occurred.");
+    } finally {
+        setIsFollowUpLoading(false);
+    }
+};
+
+
+// --- Share Functionality ---
+const handleShare = async () => {
+    if (!responses.length && !summary) {
+        setError("Nothing to share yet. Please analyse a situation first.");
+        return;
+    }
+    setIsSharing(true);
+    setCopySuccess('');
+    setError(null); // Clear previous errors
+
+    try {
+        // Prepare data for saving (include follow-up Q&A if available)
         const resultsData = {
             context,
-            query: queryToSend,
-            followUpResponses: followUpQuestions.map((question, index) => ({
-                question,
-                answer: followUpAnswers[index] || ''
-            })),
-            responses, // The array of persona responses
+            query: queryToSend, // Use the final query sent
+            responses,
             summary,
             paraphrase,
-            timestamp: new Date().toISOString() // Add a timestamp for context
+            timestamp: new Date().toISOString(),
+            // Include the original follow-up questions and the answers provided
+            followUpResponses: followUpQuestions.map((question, index) => ({
+                question,
+                answer: followUpAnswers[index] || '' // Use stored answers
+            }))
         };
 
-        try {
-            const res = await fetch('/api/saveResults', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(resultsData)
-            });
+        console.log("Sending data to saveResults API:", resultsData);
 
-            if (!res.ok) {
-                const errorText = await res.text();
-                throw new Error(`Failed to save results: ${res.status} ${errorText}`);
-            }
+        const res = await fetch('/api/saveResults', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(resultsData)
+        });
 
-            const data = await res.json();
-            const newLink = `${window.location.origin}/results/${data.id}`;
-            setShareableLink(newLink);
-
-            // Attempt to copy to clipboard
-            try {
-                await navigator.clipboard.writeText(newLink);
-                setCopySuccess('Link copied to clipboard!');
-            } catch (copyError) {
-                console.error('Failed to copy link automatically:', copyError);
-                setCopySuccess('Link generated. Copy manually.'); // Fallback message
-            }
-             // Clear success message after a few seconds
-            setTimeout(() => setCopySuccess(''), 5000);
-
-
-        } catch (error) {
-            console.error("Error sharing results:", error);
-            setCopySuccess(`Error: ${error.message}`);
-             // Clear error message after a few seconds
-            setTimeout(() => setCopySuccess(''), 5000);
-        } finally {
-            setIsSharing(false);
+        if (!res.ok) {
+            const errorData = await res.json();
+            throw new Error(errorData.error || `Failed to save results (status ${res.status})`);
         }
-    };
-    const selectedResponse = responses.find(r => r.persona === selectedPersona);
 
-    // --- Render Logic ---
-    return (
-        <main className={`min-h-screen bg-gradient-to-br from-gray-900 via-slate-900 to-black py-12 sm:py-16 px-4 sm:px-6 lg:px-8 font-sans antialiased text-slate-300 animate-gradient-bg`}>
-             {view === 'loading' && <LoadingScreen isApiComplete={isApiComplete} isTakingLong={isTakingLong} />}
-             <div className={`max-w-5xl mx-auto bg-slate-800/60 backdrop-blur-lg shadow-2xl rounded-3xl overflow-hidden border border-slate-700/60 transition-opacity duration-300 ease-in-out ${view === 'loading' ? 'opacity-0 invisible' : 'opacity-100 visible'}`}>
-                <div className="bg-gradient-to-r from-slate-900/80 via-gray-900/70 to-slate-800/80 backdrop-blur-sm pt-6 sm:pt-8 pb-8 sm:pb-10 px-10 sm:px-12 text-center shadow-lg border-b border-slate-700/40">
-                   <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-teal-300 to-cyan-400 tracking-tight pb-2">Am I Being Unreasonable?</h1>
-                   <p className="mt-3 text-base sm:text-lg text-slate-400 max-w-2xl mx-auto">Confused by a situation? Get clarity and an objective perspective.</p>
+        const { id } = await res.json();
+        const link = `${window.location.origin}/results/${id}`;
+        setShareableLink(link);
+        console.log("Share link generated:", link);
+
+        // Attempt to copy to clipboard
+        try {
+            await navigator.clipboard.writeText(link);
+            setCopySuccess('Link copied to clipboard!');
+        } catch (copyError) {
+            console.warn("Failed to copy link automatically:", copyError);
+            setCopySuccess('Link generated! (Copy manually)'); // Indicate success but copy failure
+        }
+
+    } catch (err) {
+        console.error("Error sharing results:", err);
+        setError(`Failed to create shareable link: ${err.message}`);
+        setShareableLink(''); // Clear link on error
+    } finally {
+        setIsSharing(false);
+    }
+};
+
+// --- Helper to find selected response object ---
+const selectedResponse = responses.find(r => r?.persona === selectedPersona);
+
+// --- Helper to clean summary text (copied from results page) ---
+// NOTE: This is different from cleanResponseText used for persona responses
+const cleanSummaryText = (text) => {
+    if (!text || typeof text !== 'string') return '';
+    const keysToRemove = ["VERDICT:"];
+    const lines = text.split('\n');
+    const cleanedLines = lines.map(line => {
+        const trimmedLine = line.trim();
+        for (const key of keysToRemove) {
+            if (trimmedLine.toUpperCase().startsWith(key.toUpperCase())) {
+                const keyLength = key.length;
+                return trimmedLine.substring(keyLength).trimStart();
+            }
+        }
+        return line;
+    });
+    return cleanedLines.filter(line => line.trim().length > 0).join('\n').trim();
+};
+
+// --- Helper to extract verdict parts (copied from results page) ---
+const extractVerdictParts = (cleanedSummary) => {
+    if (!cleanedSummary || typeof cleanedSummary !== 'string') return null;
+    const firstParagraphBreakIndex = cleanedSummary.indexOf('\n\n');
+    let headline = '';
+    let after = '';
+    if (firstParagraphBreakIndex !== -1) {
+        headline = cleanedSummary.substring(0, firstParagraphBreakIndex).trim();
+        after = cleanedSummary.substring(firstParagraphBreakIndex).trim();
+    } else {
+        headline = cleanedSummary.trim();
+        after = '';
+    }
+    if (headline) { return { headline, after }; }
+    return null;
+};
+
+const finalCleanedSummary = cleanSummaryText(summary);
+const verdictParts = extractVerdictParts(finalCleanedSummary);
+
+
+// --- Render Logic ---
+return (
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-slate-900 to-black text-slate-200 font-sans antialiased relative overflow-x-hidden">
+        {/* Loading Overlay */}
+        {view === 'loading' && <LoadingScreen isApiComplete={isApiComplete} isTakingLong={isTakingLong} />}
+
+        {/* Main Content Area */}
+        <main className={`container mx-auto px-4 py-12 sm:py-16 transition-opacity duration-500 ease-in-out ${view === 'loading' ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+
+            {/* --- INPUT VIEW --- */}
+            {view === 'input' && (
+                <div className="max-w-3xl mx-auto bg-slate-800/60 backdrop-blur-lg shadow-2xl rounded-3xl p-8 sm:p-12 border border-slate-700/60">
+                    <h1 className="text-4xl sm:text-5xl font-bold text-center mb-3 text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-teal-300 to-cyan-400 tracking-tight">Am I Being Unreasonable?</h1>
+                    <p className="text-center text-slate-400 mb-10 text-lg">Get instant, multi-perspective AI analysis on your situation.</p>
+
+                    <form onSubmit={(e) => { e.preventDefault(); askAI(); }} className="space-y-8">
+                        {/* Context Input */}
+                        <div className="relative">
+                            <label htmlFor="context" className="block text-lg font-semibold text-slate-100 mb-2">1. Describe the situation:</label>
+                            <p className="text-sm text-slate-400 mb-3">Be specific! Include relevant details, what happened, and who was involved. (Min 10 chars)</p>
+                            <div className="relative">
+                                <textarea
+                                    id="context"
+                                    value={context}
+                                    onChange={(e) => setContext(e.target.value)}
+                                    placeholder="" // Placeholder handled by AnimatedPlaceholder
+                                    rows="8"
+                                    className="block w-full bg-slate-700/50 border border-slate-600/70 rounded-xl shadow-inner p-4 text-lg text-slate-100 placeholder-slate-500 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition duration-150 ease-in-out resize-none relative z-10" // Ensure textarea is above placeholder
+                                    required
+                                    minLength="10"
+                                />
+                                <AnimatedPlaceholder isActive={!context} />
+                            </div>
+                        </div>
+
+                        {/* Query Selection/Input */}
+                        <div>
+                            <label htmlFor="query-select" className="block text-lg font-semibold text-slate-100 mb-2">2. What's your specific question or worry?</label>
+                            <p className="text-sm text-slate-400 mb-3">Select a common question or type your own. (Min 5 chars)</p>
+                            <select
+                                id="query-select"
+                                value={selectedQueryOption}
+                                onChange={handleQueryOptionChange}
+                                className="block w-full bg-slate-700/50 border border-slate-600/70 rounded-xl shadow-inner p-4 text-lg text-slate-100 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition duration-150 ease-in-out mb-3 appearance-none pr-8 bg-no-repeat bg-right-3"
+                                style={{ backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`, backgroundPosition: 'right 1rem center', backgroundSize: '1.5em 1.5em' }}
+                            >
+                                {queryOptions.map(option => (
+                                    <option key={option.value} value={option.value} className="bg-slate-800 text-slate-100">
+                                        {option.label}
+                                    </option>
+                                ))}
+                            </select>
+
+                            {selectedQueryOption === 'other' && (
+                                <input
+                                    type="text"
+                                    value={customQuery}
+                                    onChange={handleCustomQueryChange}
+                                    placeholder="Type your specific question here..."
+                                    className="block w-full bg-slate-700/50 border border-slate-600/70 rounded-xl shadow-inner p-4 text-lg text-slate-100 placeholder-slate-500 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition duration-150 ease-in-out"
+                                    required
+                                    minLength="5"
+                                />
+                            )}
+                        </div>
+
+                        {/* Submit Button */}
+                        <div className="text-center pt-4">
+                            <button
+                                type="submit"
+                                disabled={loading || isGeneratingFollowUps || !context.trim() || context.trim().length < 10 || !queryToSend.trim() || queryToSend.trim().length < 5}
+                                className="inline-flex items-center justify-center px-10 py-4 text-xl font-bold text-white bg-gradient-to-r from-cyan-500 to-blue-600 border border-transparent rounded-full shadow-lg hover:from-cyan-600 hover:to-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 focus:ring-offset-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transform transition hover:scale-105"
+                            >
+                                {loading || isGeneratingFollowUps ? <LoadingSpinner className="h-6 w-6 mr-3" /> : <SparklesIcon className="w-6 h-6 mr-2" />}
+                                Analyse My Situation
+                            </button>
+                        </div>
+
+                        {/* Error Display */}
+                        {error && !loading && (
+                            <div className="mt-6">
+                                <Alert type="error" title="Input Error" message={error} />
+                            </div>
+                        )}
+                    </form>
                 </div>
+            )}
 
-                {/* Input View */}
-                {view === 'input' && (
-                    <div className="p-8 sm:p-10 lg:p-12 space-y-8 animate-fadeIn">
-                         {/* Context Input */}
-                         <div>
-                             <label htmlFor="context-input" className="flex items-center text-lg font-semibold text-slate-100 mb-3"> <DocumentTextIcon />1. Describe the Situation (Context) </label>
-                             <div className="relative">
-                                 <AnimatedPlaceholder
-                                     isActive={context.length === 0}
-                                     onFocus={() => {}}
-                                 />
-                                 <textarea
-                                     id="context-input"
-                                     className="w-full p-4 text-base border border-slate-300 rounded-xl shadow-sm resize-vertical min-h-[120px] outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition duration-150 ease-in-out bg-slate-100 text-slate-900 placeholder-transparent"
-                                     placeholder="Paste relevant chat logs or describe the events in detail..."
-                                     value={context}
-                                     onChange={(e) => setContext(e.target.value)}
-                                     rows={6}
-                                 />
-                             </div>
-                             <p className="text-xs text-slate-400 mt-2 pl-1">More detail provides more accurate analysis.</p>
-                         </div>
+            {/* --- FOLLOW-UP QUESTIONS VIEW --- */}
+            {view === 'followup' && (
+                 <div className="max-w-3xl mx-auto bg-slate-800/60 backdrop-blur-lg shadow-2xl rounded-3xl p-8 sm:p-12 border border-slate-700/60">
+                    <h2 className="text-3xl font-bold text-center mb-4 text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-teal-300 to-cyan-400 tracking-tight">Just a Few More Details...</h2>
+                    <p className="text-center text-slate-400 mb-8 text-lg">Answering these helps the AI understand the nuances better. Feel free to skip if they aren't relevant.</p>
 
-                         {/* --- UPDATED Query Section (Dropdown + Optional Input) --- */}
-                         <div>
-                             <label htmlFor="query-select" className="flex items-center text-lg font-semibold text-slate-100 mb-3"> <ChatBubbleLeftEllipsisIcon/>2. What is Your Specific Question? </label>
-                             {/* Dropdown Select */}
-                             <select
-                                 id="query-select"
-                                 value={selectedQueryOption}
-                                 onChange={handleQueryOptionChange}
-                                 className="w-full p-4 text-base border border-slate-300 rounded-xl shadow-sm outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition duration-150 ease-in-out bg-slate-100 text-slate-900 placeholder-slate-500 appearance-none cursor-pointer" // Added appearance-none, cursor-pointer
-                             >
-                                 {queryOptions.map(option => (
-                                     <option key={option.value} value={option.value} disabled={option.value === ''}>
-                                         {option.label}
-                                     </option>
-                                 ))}
-                             </select>
-
-                             {/* Conditional Text Input for "Other..." */}
-                             {selectedQueryOption === 'other' && (
-                                 <div className="mt-4"> {/* Add some space */}
-                                     <input
-                                         id="custom-query-input"
-                                         type="text"
-                                         className="w-full p-4 text-base border border-slate-300 rounded-xl shadow-sm outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition duration-150 ease-in-out bg-slate-100 text-slate-900 placeholder-slate-500"
-                                         placeholder="Enter your specific question here..."
-                                         value={customQuery}
-                                         onChange={handleCustomQueryChange}
-                                     />
-                                 </div>
-                             )}
-                         </div>
-
-                         {/* Error Display (Input view) */}
-                         {error && view === 'input' && <div className="pt-2"><Alert type="error" title="Input Error" message={error} /></div>}
-                         
-                         {/* --- Next Step Section --- */}
-                         <div className="text-center pt-6 mt-6 border-t border-slate-700/40">
-                             {/* Explanation */}
-                             <div className="mb-5 px-4">
-                                 <h3 className="text-base font-semibold text-cyan-400 mb-2">Next Step:</h3>
-                                 <p className="text-sm text-slate-300 max-w-lg mx-auto">
-                                     {skipFollowUpQuestions ?
-                                         "You'll receive an immediate objective analysis of your situation." :
-                                         "We'll generate a few optional follow-up questions designed to improve the analysis."}
-                                 </p>
-                             </div>
-
-                             {/* Skip Follow-up Questions Option */}
-                             <div className="flex items-center justify-center mb-6"> {/* Added mb-6 for spacing */}
-                                 <label className="inline-flex items-center cursor-pointer">
-                                     <input
-                                         type="checkbox"
-                                         className="form-checkbox h-5 w-5 text-cyan-500 rounded border-slate-400 focus:ring-cyan-500 focus:ring-offset-slate-800"
-                                         checked={skipFollowUpQuestions}
-                                         onChange={(e) => setSkipFollowUpQuestions(e.target.checked)}
-                                     />
-                                     {/* Added text-sm to match explanation */}
-                                     <span className="ml-2 text-slate-300 text-sm">Skip follow-up questions and get immediate analysis</span>
-                                 </label>
-                             </div>
-
-                             {/* Submit Button */}
-                             <button
-                                onClick={askAI}
-                                disabled={loading || isGeneratingFollowUps}
-                                className={`inline-flex items-center justify-center px-12 py-3.5 border border-transparent text-base font-semibold rounded-full shadow-lg text-white transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 focus:ring-offset-slate-800 transform hover:scale-105 active:scale-100 ${ (loading || isGeneratingFollowUps) ? 'bg-gray-500 cursor-not-allowed opacity-70' : 'bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700'}`}
-                             >
-                                 {loading ? (
-                                    <> <LoadingSpinner /> <span className="ml-3">Analysing...</span> </>
-                                 ) : isGeneratingFollowUps ? (
-                                    <> <LoadingSpinner /> <span className="ml-3">Generating Questions...</span> </>
-                                 ) : (
-                                    /* Updated button text */
-                                    <> <SparklesIcon className="w-5 h-5 mr-2"/> {skipFollowUpQuestions ? "Get Immediate Analysis" : "Generate Follow-up Questions"}</>
-                                 )}
-                             </button>
-                         </div>
+                    <div className="space-y-6">
+                        {followUpQuestions.map((question, index) => (
+                            <div key={index}>
+                                <label htmlFor={`followup-${index}`} className="block text-md font-medium text-slate-200 mb-2">{index + 1}. {question}</label>
+                                <textarea
+                                    id={`followup-${index}`}
+                                    value={followUpAnswers[index] || ''}
+                                    onChange={(e) => handleFollowUpAnswerChange(index, e.target.value)}
+                                    rows="3"
+                                    placeholder="Your answer here (optional)..."
+                                    className="block w-full bg-slate-700/50 border border-slate-600/70 rounded-xl shadow-inner p-3 text-base text-slate-100 placeholder-slate-500 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition duration-150 ease-in-out resize-none"
+                                />
+                            </div>
+                        ))}
                     </div>
-                )}
 
-               {/* Follow-up Questions View */}
-               {view === 'followup' && (
-                   <div className="p-8 sm:p-10 lg:p-12 space-y-8 animate-fadeIn">
-                       <div>
-                           <div className="flex items-center text-lg font-semibold text-slate-100 mb-5">
-                               <SparklesIcon className="w-5 h-5 mr-2 text-cyan-400"/>
-                               <h2>Additional Questions</h2>
-                           </div>
-                           <div className="bg-slate-700/40 rounded-xl p-6 border border-slate-600/40 mb-6">
-                               <p className="text-slate-300 mb-4">
-                                   <span className="text-cyan-400 font-semibold">These follow-up questions are optional</span> but answering them may improve the quality of your analysis.
-                                   Answer as many or as few as you'd like, then click "Continue to Analysis" below.
-                               </p>
+                    <div className="flex flex-col sm:flex-row justify-center gap-4 mt-10">
+                         <button
+                            onClick={() => proceedToAnalysis(followUpAnswers)} // Pass current answers
+                            disabled={loading}
+                            className="inline-flex items-center justify-center px-8 py-3 text-lg font-semibold text-white bg-gradient-to-r from-cyan-500 to-blue-600 border border-transparent rounded-full shadow-lg hover:from-cyan-600 hover:to-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 focus:ring-offset-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transform transition hover:scale-105"
+                        >
+                            {loading ? <LoadingSpinner className="h-5 w-5 mr-2" /> : <SparklesIcon className="w-5 h-5 mr-2" />}
+                            Proceed to Analysis
+                        </button>
+                         <button
+                            onClick={() => proceedToAnalysis({})} // Pass empty object to indicate skip
+                            disabled={loading}
+                            className="px-8 py-3 text-lg font-semibold text-slate-300 bg-slate-700/60 border border-slate-600 rounded-full shadow-sm hover:bg-slate-600/80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500 focus:ring-offset-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transform transition hover:scale-105"
+                        >
+                            Skip & Analyse Anyway
+                        </button>
+                    </div>
+                     {error && !loading && (
+                        <div className="mt-6">
+                            <Alert type="error" title="Error" message={error} />
+                        </div>
+                    )}
+                </div>
+            )}
 
-                               <div className="space-y-6 mt-6">
-                                   {followUpQuestions.map((question, index) => (
-                                       <div key={index} className="bg-slate-800/60 rounded-lg p-5 border border-slate-700/60">
-                                           <label htmlFor={`followup-${index}`} className="block text-slate-200 font-medium mb-2">
-                                               {question}
-                                           </label>
-                                           <textarea
-                                               id={`followup-${index}`}
-                                               className="w-full p-3 text-base border border-slate-600 rounded-lg shadow-sm resize-vertical min-h-[80px] outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition duration-150 ease-in-out bg-slate-700/60 text-slate-200 placeholder-slate-400"
-                                               placeholder="Your answer (optional)..."
-                                               value={followUpAnswers[index] || ''}
-                                               onChange={(e) => handleFollowUpAnswerChange(index, e.target.value)}
-                                           />
-                                       </div>
-                                   ))}
-                               </div>
-                           </div>
-                           
-                           {/* Error Display (Follow-up view) */}
-                           {error && view === 'followup' && <div className="pt-2"><Alert type="error" title="Input Error" message={error} /></div>}
-                           
-                           {/* Action Buttons */}
-                           <div className="flex flex-col sm:flex-row justify-center gap-4 pt-6">
-                               <button
-                                   onClick={askAI} // Directly call askAI, which now handles the 'followup' view state
-                                   disabled={loading}
-                                   className={`inline-flex items-center justify-center px-8 py-3 border border-transparent text-base font-semibold rounded-full shadow-lg text-white transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 focus:ring-offset-slate-800 transform hover:scale-105 active:scale-100 ${loading ? 'bg-gray-500 cursor-not-allowed opacity-70' : 'bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700'}`}
-                               >
-                                   {loading ? (
-                                       <> <LoadingSpinner /> <span className="ml-3">Analysing...</span> </>
-                                   ) : (
-                                       <> <SparklesIcon className="w-5 h-5 mr-2"/> Continue to Analysis</>
-                                   )}
-                               </button>
-                               {/* Removed "Back to Main Question" button */}
-                           </div>
-                       </div>
-                   </div>
-               )}
 
-                 {/* Results View */}
-                {view === 'results' && (
-                    <div className="bg-transparent px-6 md:px-10 py-10 border-t border-slate-700/40">
-                        {/* Error Display (Results view) */}
-                        {error && ( <div className="mb-10 max-w-3xl mx-auto"> <Alert type={error.toLowerCase().includes("incomplete") || error.toLowerCase().includes("partially") || error.toLowerCase().includes("failed") || error.toLowerCase().includes("issue") || error.toLowerCase().includes("skipped") || error.toLowerCase().includes("generate") ? "warning" : "error"} title={error.toLowerCase().includes("incomplete") || error.toLowerCase().includes("partially") ? "Analysis Incomplete" : (error.toLowerCase().includes("failed") || error.toLowerCase().includes("issue") || error.toLowerCase().includes("generate") || error.toLowerCase().includes("skipped") ? "Analysis Issue" : "Error")} message={error} /> </div> )}
-                        {/* Results Sections Container */}
-                        {!error || (error && !error.toLowerCase().includes('service connection') && !error.toLowerCase().includes('invalid request') && !error.toLowerCase().includes('server configuration')) ? (
-                             <div className='space-y-10 md:space-y-12'>
-                                {/* Paraphrase Section */}
-                                {paraphrase && !paraphrase.startsWith("[") && ( <div className="max-w-3xl mx-auto text-center"> <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">Your Situation Summary</h3> <blockquote className="text-base italic text-slate-800 bg-slate-100 p-4 rounded-lg border border-slate-300 shadow"> "{paraphrase}" </blockquote> </div> )}
-                                {paraphrase && paraphrase.startsWith("[") && (!error || !error.toLowerCase().includes('paraphrase')) && ( <div className="max-w-3xl mx-auto"> <Alert type="warning" title="Context Summary Issue" message="Could not generate situation summary." /> </div> )}
-                                {/* Share Button Section */}
-                                <div className="mt-6 text-center max-w-3xl mx-auto">
+            {/* --- RESULTS VIEW --- */}
+            {view === 'results' && hasAnalysed && (
+                <div ref={resultsSectionRef} className="max-w-5xl mx-auto bg-slate-800/60 backdrop-blur-lg shadow-2xl rounded-3xl overflow-hidden border border-slate-700/60 animate-fadeInUp">
+                    {/* Header Section */}
+                    <div className="bg-gradient-to-r from-slate-900/80 via-gray-900/70 to-slate-800/80 backdrop-blur-sm pt-6 sm:pt-8 pb-8 sm:pb-10 px-10 sm:px-12 text-center shadow-lg border-b border-slate-700/40">
+                        <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-teal-300 to-cyan-400 tracking-tight pb-2">Analysis Results</h1>
+                        <p className="text-sm text-slate-400 mt-2 max-w-2xl mx-auto">Here's what our AI panel thinks about your situation.</p>
+                    </div>
+
+                    {/* Main Results Content */}
+                    <div className="bg-transparent px-6 md:px-10 py-10">
+                        {/* Error Display within Results */}
+                        {error && (
+                            <div className="mb-8 max-w-3xl mx-auto">
+                                <Alert type="warning" title="Analysis Issue" message={error} />
+                            </div>
+                        )}
+
+                        <div className='space-y-10 md:space-y-12'>
+                            {/* Original Context & Query Display */}
+                            <div className="max-w-3xl mx-auto">
+                                <h3 className="text-lg font-semibold text-slate-100 mb-3 flex items-center"><DocumentTextIcon />The Situation You Described</h3>
+                                <div className="p-4 text-sm border border-slate-600/50 rounded-xl bg-slate-700/30 text-slate-300 whitespace-pre-wrap">
+                                    {context || "No context provided."}
+                                </div>
+                                <h3 className="text-lg font-semibold text-slate-100 mt-8 mb-4 flex items-center"><ChatBubbleLeftEllipsisIcon />Your Specific Question</h3>
+                                <div className="p-5 text-base border border-cyan-600/50 rounded-xl bg-cyan-900/20 text-cyan-100 font-medium shadow-inner">
+                                    {queryToSend || "No specific question was analysed."}
+                                </div>
+                                {/* Display Follow-up Q&A if they were answered */}
+                                {followUpQuestions.length > 0 && Object.values(followUpAnswers).some(ans => ans && ans.trim() !== '') && (
+                                    <div className="mt-6">
+                                        <h4 className="text-base font-semibold text-slate-200 mb-3">Your Follow-up Answers:</h4>
+                                        <div className="space-y-3 text-sm">
+                                            {followUpQuestions.map((q, index) => (
+                                                followUpAnswers[index] && followUpAnswers[index].trim() !== '' && (
+                                                    <div key={index} className="p-3 border border-slate-600/40 rounded-lg bg-slate-700/20">
+                                                        <p className="font-medium text-slate-300 mb-1">Q: {q}</p>
+                                                        <p className="text-slate-400 whitespace-pre-wrap">A: {followUpAnswers[index]}</p>
+                                                    </div>
+                                                )
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Verdict Section */}
+                            {finalCleanedSummary && !finalCleanedSummary.startsWith("[") && (
+                                <div className="border-t border-slate-700/40 pt-10 md:pt-12">
+                                    <h2 className="text-2xl md:text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-teal-300 to-cyan-400 mb-6 text-center tracking-tight">The Quick Verdict</h2>
+                                    <div className="bg-white text-slate-900 rounded-xl p-6 shadow-lg max-w-3xl mx-auto border border-slate-300">
+                                        {verdictParts ? (
+                                            <div>
+                                                <div className="bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-semibold p-3 rounded-lg mb-4 shadow-md">
+                                                    <MarkdownRenderer content={verdictParts.headline} className="prose-sm prose-strong:text-white prose-p:text-white" isDark={true} />
+                                                </div>
+                                                {verdictParts.after && (
+                                                     <MarkdownRenderer content={verdictParts.after} className="prose-sm" isDark={false} />
+                                                )}
+                                            </div>
+                                        ) : (
+                                            <MarkdownRenderer content={finalCleanedSummary} className="prose-sm" isDark={false} />
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                            {summary && summary.startsWith("[") && !error && ( <div className="max-w-3xl mx-auto"> <Alert type="warning" title="Verdict Issue" message="Could not generate the final verdict summary." /> </div> )}
+
+
+                            {/* Detailed Perspectives Section */}
+                            {Array.isArray(responses) && responses.some(r => r?.response && !r.response.startsWith("[")) && (
+                                <div className="border-t border-slate-700/40 pt-10 md:pt-12">
+                                    <h2 className="text-2xl md:text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-teal-300 to-cyan-400 mb-8 text-center tracking-tight">Detailed Analysis Perspectives</h2>
+                                    {/* Persona Selection Buttons */}
+                                    <div className="flex justify-center flex-wrap gap-3 sm:gap-4 mb-10 border-b border-slate-700/40 pb-6">
+                                         {responses.map((r) => ( r?.response && !r.response.startsWith("[") && <button key={r.persona} onClick={() => handleSelectPersona(r.persona)} className={`px-5 py-2 text-sm font-medium rounded-full transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2 focus:ring-offset-slate-800 whitespace-nowrap transform hover:scale-103 active:scale-100 ${ selectedPersona === r.persona ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-lg ring-2 ring-offset-1 ring-cyan-400 scale-105' : 'text-slate-200 bg-slate-700/40 hover:bg-slate-600/60 border border-slate-600/60' }`} > {r.persona.split('(')[0].trim()} </button> ))}
+                                     </div>
+                                    {/* Detailed View & Follow-up Area */}
+                                    <div ref={detailViewRef} className={`transition-opacity duration-300 ease-in-out ${isSwitchingPersona ? 'opacity-30' : 'opacity-100'}`} >
+                                        {selectedResponse && !selectedResponse.response.startsWith("[") && (
+                                            <div key={selectedPersona} className="bg-white text-slate-900 rounded-2xl p-6 md:p-8 shadow-xl border border-slate-300 max-w-3xl mx-auto animate-fadeIn mb-10">
+                                                <h3 className="text-xl font-semibold text-slate-800 mb-5">
+                                                    {selectedResponse.persona}
+                                                </h3>
+                                                <div className="text-[15px] leading-relaxed space-y-4">
+                                                    {/* Use cleanResponseText here */}
+                                                    <MarkdownRenderer content={cleanResponseText(selectedResponse.response)} isDark={false} />
+                                                </div>
+
+                                                {/* --- Follow-up Section (Integrated Here) --- */}
+                                                <div className="mt-8 pt-6 border-t border-slate-200">
+                                                    {/* Show "Start Follow-up" button ONLY if no follow-up is active */}
+                                                    {followUpPersonaId === null && (
+                                                        <button
+                                                            onClick={() => handleStartFollowUp(selectedResponse.persona)}
+                                                            className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-cyan-600 to-blue-700 border border-transparent rounded-md shadow-sm hover:from-cyan-700 hover:to-blue-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 focus:ring-offset-white"
+                                                        >
+                                                            <ChatBubbleOvalLeftEllipsisIcon /> Ask follow-up with {selectedResponse.persona.split('(')[0].trim()}
+                                                        </button>
+                                                    )}
+
+                                                    {/* Show Follow-up UI ONLY if this persona is selected for follow-up */}
+                                                    {followUpPersonaId === selectedResponse.persona && (
+                                                        <div className="space-y-6">
+                                                            <h4 className="text-lg font-semibold text-slate-700">Continue conversation with {followUpPersonaId.split('(')[0].trim()}:</h4>
+
+                                                            {/* Conversation History */}
+                                                            <div className="space-y-4 max-h-96 overflow-y-auto pr-2 bg-slate-50 p-4 rounded-lg border border-slate-200">
+                                                                {followUpConversation.map((item, index) => (
+                                                                    <div key={index} className="text-sm">
+                                                                        <p className="font-semibold text-slate-600 mb-1">You:</p>
+                                                                        <p className="mb-3 text-slate-800 whitespace-pre-wrap">{item.question}</p>
+                                                                        <p className="font-semibold text-cyan-700 mb-1">{followUpPersonaId.split('(')[0].trim()}:</p>
+                                                                        <div className="text-slate-800">
+                                                                            <MarkdownRenderer content={item.answer} isDark={false} className="prose-sm" />
+                                                                        </div>
+                                                                        {index < followUpConversation.length - 1 && <hr className="my-4 border-slate-200" />}
+                                                                    </div>
+                                                                ))}
+                                                                {/* Display loading indicator during API call */}
+                                                                {isFollowUpLoading && (
+                                                                    <div className="flex items-center justify-center p-3 text-slate-500">
+                                                                        <LoadingSpinner className="h-4 w-4 mr-2 text-cyan-600" />
+                                                                        <span>Getting response...</span>
+                                                                    </div>
+                                                                )}
+                                                                {/* Display error message if API call failed */}
+                                                                {followUpError && (
+                                                                    <div className="mt-3">
+                                                                        <Alert type="error" title="Follow-up Error" message={followUpError} />
+                                                                    </div>
+                                                                )}
+                                                                {/* Invisible element to scroll to */}
+                                                                <div ref={followUpEndRef} />
+                                                            </div>
+
+                                                            {/* Follow-up Input Form */}
+                                                            <form onSubmit={handleSendFollowUp} className="flex items-start space-x-3">
+                                                                <textarea
+                                                                    value={followUpQuestion}
+                                                                    onChange={(e) => setFollowUpQuestion(e.target.value)}
+                                                                    placeholder={`Ask ${followUpPersonaId.split('(')[0].trim()} another question...`}
+                                                                    rows="3"
+                                                                    className="flex-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-cyan-500 focus:ring-cyan-500 sm:text-sm p-2 resize-none disabled:opacity-50 disabled:bg-slate-100"
+                                                                    disabled={isFollowUpLoading}
+                                                                    required
+                                                                />
+                                                                <button
+                                                                    type="submit"
+                                                                    className="inline-flex items-center justify-center px-4 py-2 h-[calc(3*1.5rem+1rem)] border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-cyan-600 hover:bg-cyan-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                                    disabled={isFollowUpLoading || !followUpQuestion.trim()}
+                                                                >
+                                                                    {isFollowUpLoading ? <LoadingSpinner className="h-5 w-5" /> : <PaperAirplaneIcon />}
+                                                                    <span className="sr-only">Send</span>
+                                                                </button>
+                                                            </form>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                {/* --- End Follow-up Section --- */}
+
+                                            </div>
+                                        )}
+                                         {!selectedResponse && Array.isArray(responses) && responses.some(r => r?.response && !r.response.startsWith("[")) && ( <div className="text-center text-slate-500 italic mt-4">Select a perspective above to view details.</div> )}
+                                     </div>
+                                </div>
+                            )}
+                            {/* Fallback message if no valid responses */}
+                            {(!Array.isArray(responses) || !responses.some(r => r?.response && !r.response.startsWith("["))) && !error && ( <div className="text-center text-slate-400 py-10"> No analysis could be generated for this input. </div> )}
+
+
+                            {/* Share and Restart Buttons */}
+                            <div className="text-center border-t border-slate-700/40 pt-10 md:pt-12 space-y-6">
+                                {/* Share Section */}
+                                <div>
+                                    <h3 className="text-xl font-semibold text-slate-100 mb-4">Share these results?</h3>
                                     <button
                                         onClick={handleShare}
-                                        disabled={isSharing || !hasAnalysed}
-                                        className={`inline-flex items-center justify-center px-6 py-2 border border-transparent text-base font-medium rounded-md shadow-sm text-white ${isSharing ? 'bg-slate-500 cursor-not-allowed' : 'bg-cyan-600 hover:bg-cyan-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-800 focus:ring-cyan-500'} transition duration-150 ease-in-out disabled:opacity-60`}
+                                        disabled={isSharing}
+                                        className="inline-flex items-center justify-center px-6 py-3 text-base font-medium text-white bg-gradient-to-r from-purple-500 to-indigo-600 border border-transparent rounded-full shadow-lg hover:from-purple-600 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 focus:ring-offset-slate-800 disabled:opacity-60 disabled:cursor-not-allowed transform transition hover:scale-105"
                                     >
-                                        {isSharing ? (
-                                            <>
-                                                <LoadingSpinner />
-                                                <span className="ml-2">Generating Link...</span>
-                                            </>
-                                        ) : (
-                                            'Share Results'
-                                        )}
+                                        {isSharing ? <LoadingSpinner className="h-5 w-5 mr-2" /> : <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 mr-2"><path strokeLinecap="round" strokeLinejoin="round" d="M7.217 10.907a2.25 2.25 0 1 0 0 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186 9.566-5.314m-9.566 7.5 9.566 5.314m0 0a2.25 2.25 0 1 0 3.935 2.186 2.25 2.25 0 0 0-3.935-2.186Zm0-12.814a2.25 2.25 0 1 0 3.933-2.185 2.25 2.25 0 0 0-3.933 2.185Z" /></svg>}
+                                        {isSharing ? 'Generating Link...' : 'Create Shareable Link'}
                                     </button>
                                     {shareableLink && (
-                                        <div className="mt-4 p-3 bg-slate-900 rounded-md border border-slate-700 flex items-center justify-between">
+                                        <div className="mt-4 max-w-xl mx-auto">
                                             <input
                                                 type="text"
-                                                value={shareableLink}
                                                 readOnly
-                                                className="flex-grow bg-transparent text-slate-300 border-none focus:ring-0 text-sm p-0 mr-2"
-                                                onClick={(e) => e.target.select()} // Select text on click
+                                                value={shareableLink}
+                                                className="w-full bg-slate-700 border border-slate-600 rounded-md px-3 py-2 text-slate-200 text-sm focus:outline-none focus:ring-1 focus:ring-cyan-500"
+                                                onClick={(e) => e.target.select()}
                                             />
-                                            <button
-                                                onClick={async () => {
-                                                    try {
-                                                        await navigator.clipboard.writeText(shareableLink);
-                                                        setCopySuccess('Copied!');
-                                                    } catch (err) {
-                                                        setCopySuccess('Failed to copy.');
-                                                    }
-                                                    setTimeout(() => setCopySuccess(''), 2000);
-                                                }}
-                                                className="text-xs bg-slate-700 hover:bg-slate-600 text-slate-300 px-2 py-1 rounded"
-                                            >
-                                                Copy
-                                            </button>
+                                            {copySuccess && <p className="text-sm text-green-400 mt-2">{copySuccess}</p>}
                                         </div>
-                                    )}
-                                    {copySuccess && (
-                                        <p className={`mt-2 text-sm ${copySuccess.includes('Error') || copySuccess.includes('Failed') || copySuccess.includes('Cannot') ? 'text-red-400' : 'text-green-400'}`}>
-                                            {copySuccess}
-                                        </p>
                                     )}
                                 </div>
 
-                                {/* Verdict Section */}
-                                {summary && !summary.startsWith("[") && (
-                                    <div className="border-t border-slate-700/40 pt-10 md:pt-12">
-                                        <h2 className="text-2xl md:text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-teal-300 to-cyan-400 mb-6 text-center tracking-tight">The Quick Verdict</h2>
-                                        <div className="bg-white text-slate-900 rounded-xl p-6 shadow-lg max-w-3xl mx-auto border border-slate-300">
-                                            {/* Custom rendering for the verdict to highlight it */}
-                                            {summary.match(/^\s*\*\*\s*verdict\s*:/i) || summary.match(/^\s*verdict\s*:/i) || summary.match(/^\s*\*\*\s*(you('re| are) (not )?being unreasonable|aita|aibu|wibta)/i) || summary.match(/^\s*(you('re| are) (not )?being unreasonable)/i) ? (
-                                                <div>
-                                                    <div className="bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-semibold p-3 rounded-lg mb-4 shadow-md">
-                                                        {summary.split(/\n\n/)[0].replace(/\*\*/g, '')}
-                                                    </div>
-                                                    <MarkdownRenderer
-                                                        content={summary.split(/\n\n/).slice(1).join('\n\n')}
-                                                        className="prose-sm"
-                                                        isDark={false}
-                                                    />
-                                                </div>
-                                            ) : (
-                                                <MarkdownRenderer content={summary} className="prose-sm" isDark={false} />
-                                            )}
-                                        </div>
-                                    </div>
-                                )}
-                                {summary && summary.startsWith("[") && (!error || !error.toLowerCase().includes('summary')) && ( <div className="max-w-3xl mx-auto"> <Alert type="warning" title="Verdict Issue" message="Could not generate the final verdict summary." /> </div> )}
-                                {/* Detailed Perspectives Section */}
-                                {responses.some(r => r.response && !r.response.startsWith("[")) && (
-                                    <div className="border-t border-slate-700/40 pt-10 md:pt-12">
-                                        <h2 className="text-2xl md:text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-teal-300 to-cyan-400 mb-8 text-center tracking-tight">Detailed Analysis Perspectives</h2>
-                                        <div className="flex justify-center flex-wrap gap-3 sm:gap-4 mb-10 border-b border-slate-700/40 pb-6">
-                                             {responses.map((r) => ( r.response && !r.response.startsWith("[") && <button key={r.persona} onClick={() => handleSelectPersona(r.persona)} className={`px-5 py-2 text-sm font-medium rounded-full transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2 focus:ring-offset-slate-800 whitespace-nowrap transform hover:scale-103 active:scale-100 ${ selectedPersona === r.persona ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-lg ring-2 ring-offset-1 ring-cyan-400 scale-105' : 'text-slate-200 bg-slate-700/40 hover:bg-slate-600/60 border border-slate-600/60' }`} > {r.persona.split('(')[0].trim()} </button> ))}
-                                         </div>
-                                        <div ref={detailViewRef} className={`transition-opacity duration-300 ease-in-out ${isSwitchingPersona ? 'opacity-30' : 'opacity-100'}`} >
-                                            {selectedResponse && !selectedResponse.response.startsWith("[") && (
-                                                // *** Explicit dark text for container ***
-                                                <div key={selectedPersona} className="bg-white text-slate-900 rounded-2xl p-6 md:p-8 shadow-xl border border-slate-300 max-w-3xl mx-auto animate-fadeIn mb-10">
-                                                    <h3 className="text-xl font-semibold text-slate-800 mb-5"> {/* Dark text for persona title */}
-                                                        {selectedResponse.persona}
-                                                    </h3>
-                                                    <div className="text-[15px] leading-relaxed space-y-4">
-                                                        {/* Pass isDark=false to use light mode prose styles */}
-                                                        <MarkdownRenderer content={selectedResponse.response} isDark={false} />
-                                                    </div>
-                                                </div>
-                                            )}
-                                             {!selectedResponse && responses.some(r => r.response && !r.response.startsWith("[")) && ( <div className="text-center text-slate-500 italic mt-4">Select a perspective above to view details.</div> )}
-                                         </div>
-                                    </div>
-                                )}
-                                {/* Fallback message */}
-                                {!summary && !responses.some(r => r.response && !r.response.startsWith("[")) && !error && ( <div className="text-center text-slate-400 py-10"> No analysis could be generated for this input. Please try rephrasing your situation or question. </div> )}
+                                {/* Restart Button */}
+                                <div>
+                                    <button
+                                        onClick={handleRestart}
+                                        className="px-8 py-3 text-lg font-semibold text-slate-300 bg-slate-700/60 border border-slate-600 rounded-full shadow-sm hover:bg-slate-600/80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500 focus:ring-offset-slate-800 transform transition hover:scale-105"
+                                    >
+                                        Analyse Another Situation
+                                    </button>
+                                </div>
                             </div>
-                        ) : null /* Don't render results if critical error */}
-                        {/* Restart Button */}
-                        <div className="mt-12 text-center border-t border-slate-700/40 pt-10 md:pt-12">
-                              <button onClick={handleRestart} className="inline-flex items-center justify-center px-10 py-3 border border-slate-600/60 text-base font-medium rounded-xl shadow-sm text-slate-200 bg-slate-700/40 hover:bg-slate-600/60 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 focus:ring-offset-slate-800 transition duration-150 ease-in-out transform hover:scale-103 active:scale-100" > Analyse Another Situation </button>
                         </div>
                     </div>
-                )}
-                 {view !== 'input' && view !== 'results' && view !== 'loading' && view !== 'followup' && ( <div className="p-12 text-center text-red-400">Internal application error: Invalid view state.</div> )}
-            </div>
-             <footer className="text-center mt-16 text-slate-500 text-sm px-4"> © {new Date().getFullYear()} Am I Being Unreasonable?™ | AI Analysis Tool | For informational purposes only. Use results critically. </footer>
-             <style jsx global>{` @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } } .animate-fadeIn { animation: fadeIn 0.4s ease-out forwards; } @keyframes gradient-xy { 0%, 100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } } .animate-gradient-xy { background-size: 300% 300%; animation: gradient-xy 18s ease infinite; } @keyframes gradient-background { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } } .animate-gradient-bg { background-size: 200% 200%; animation: gradient-background 25s ease infinite; } @keyframes pulse-bar { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } } .animate-pulse-bar { animation: pulse-bar 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite; } @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } } .animate-blink { animation: blink 1s ease-in-out infinite; } .animate-pulse-slow { animation: pulse-bar 3s ease-in-out infinite; } .placeholder-transparent::placeholder { color: transparent; } `}</style>
+                </div>
+            )}
+
         </main>
-    );
+
+        {/* Footer */}
+        <footer className={`text-center mt-16 pb-8 text-slate-500 text-sm px-4 transition-opacity duration-500 ease-in-out ${view === 'loading' ? 'opacity-0' : 'opacity-100'}`}>
+            © {new Date().getFullYear()} Am I Being Unreasonable?™ | AI Analysis Tool | For informational purposes only. Use results critically.
+        </footer>
+
+        {/* Global Styles/Animations */}
+        <style jsx global>{`
+            @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+            .animate-fadeInUp { animation: fadeInUp 0.6s ease-out forwards; }
+            @keyframes gradient-background { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
+            .animate-gradient-bg { background-size: 200% 200%; animation: gradient-background 25s ease infinite; }
+            @keyframes gradient-xy { 0%, 100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
+            .animate-gradient-xy { background-size: 200% 200%; animation: gradient-xy 15s ease infinite; }
+            @keyframes pulse-bar { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
+            .animate-pulse-bar { animation: pulse-bar 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+            @keyframes blink { 50% { opacity: 0; } }
+            .animate-blink { animation: blink 1s step-end infinite; }
+            .animate-pulse-slow { animation: pulse 2.5s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+        `}</style>
+    </div>
+);
 }
