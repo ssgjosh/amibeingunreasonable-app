@@ -67,6 +67,7 @@ const ArrowRightIcon = () => <svg xmlns="http://www.w3.org/2000/svg" fill="none"
 
 
 // --- Helper Function to Clean Response Text ---
+// Removes specific key prefixes (case-insensitive) from the start of lines.
 const cleanResponseText = (text) => {
     if (!text || typeof text !== 'string') return '';
 
@@ -74,21 +75,28 @@ const cleanResponseText = (text) => {
         "CORE_DYNAMIC:",
         "CONCLUSION:",
         "FINAL_CONCLUSION:",
-        "STRATEGY_EFFECTIVENESS:"
+        "STRATEGY_EFFECTIVENESS:",
+        "VERDICT:" // Also include VERDICT here for consistency, though extractVerdictParts handles it separately too
     ];
 
     const lines = text.split('\n');
-    const cleanedLines = lines.filter(line => {
+    const cleanedLines = lines.map(line => {
         const trimmedLine = line.trim();
-        // Check if the line starts with any of the keys (case-insensitive)
-        return !keysToRemove.some(key =>
-            trimmedLine.toUpperCase().startsWith(key.toUpperCase())
-        );
+        for (const key of keysToRemove) {
+            // Case-insensitive check if the trimmed line starts with the key
+            if (trimmedLine.toUpperCase().startsWith(key.toUpperCase())) {
+                // Find the length of the actual key match (could differ in case)
+                const keyLength = key.length;
+                // Remove the key and any immediate whitespace after it
+                return trimmedLine.substring(keyLength).trimStart();
+            }
+        }
+        // If no key matched, return the original line (it might be empty or just whitespace)
+        return line;
     });
 
-    // Join back, preserving paragraph breaks (double newlines)
-    // and removing leading/trailing whitespace from the final result.
-    return cleanedLines.join('\n').trim();
+    // Join back, filter out potentially empty lines resulting from key removal, and trim the final result
+    return cleanedLines.filter(line => line.trim().length > 0).join('\n').trim();
 };
 
 
@@ -189,50 +197,40 @@ export default function SharedResultPage() {
         : null;
 
     // --- Render Logic ---
-    // Function to extract the verdict and the rest of the summary based on "VERDICT:" label
-    const extractVerdictParts = (summary) => {
-        if (!summary || typeof summary !== 'string') return null;
+    // Function to extract the verdict headline and the rest of the summary based on "VERDICT:" label
+    // Note: This function now assumes the input `summary` has already been cleaned by `cleanResponseText`
+    const extractVerdictParts = (cleanedSummary) => {
+        if (!cleanedSummary || typeof cleanedSummary !== 'string') return null;
 
-        // Regex: Find "VERDICT:" at the start (case-insensitive), capture the rest
-        // Group 1: The "VERDICT:" label itself (including potential whitespace)
-        // Group 2: Everything after the label
-        const match = summary.match(/^\s*(VERDICT:)\s*(.*)/is); // 'i' for case-insensitive, 's' for dotall
+        // Since cleanResponseText might remove the VERDICT: prefix, we can't rely on it here.
+        // Instead, we assume the first paragraph of the cleaned summary is the headline.
+        const firstParagraphBreakIndex = cleanedSummary.indexOf('\n\n');
 
-        if (match && match[2] && match[2].trim()) { // Ensure text after label exists and is not empty
-            const verdictText = match[2].trim(); // The entire text after "VERDICT: "
+        let headline = '';
+        let after = '';
 
-            // Now, we need to find the *first* paragraph break (double newline)
-            // to separate the headline from the rest of the text.
-            const firstParagraphBreakIndex = verdictText.indexOf('\n\n');
-
-            let headline = '';
-            let after = '';
-
-            if (firstParagraphBreakIndex !== -1) {
-                // Found a paragraph break, split the text
-                headline = verdictText.substring(0, firstParagraphBreakIndex).trim();
-                after = verdictText.substring(firstParagraphBreakIndex).trim();
-            } else {
-                // No paragraph break, the entire verdictText is the headline
-                headline = verdictText;
-                after = ''; // No text after the headline
-            }
-
-            // Final check to ensure headline is not empty after trimming
-            if (headline) {
-                return {
-                    before: '', // No text before the VERDICT: label
-                    headline: headline,
-                    after: after
-                };
-            }
+        if (firstParagraphBreakIndex !== -1) {
+            headline = cleanedSummary.substring(0, firstParagraphBreakIndex).trim();
+            after = cleanedSummary.substring(firstParagraphBreakIndex).trim();
+        } else {
+            headline = cleanedSummary.trim(); // Entire cleaned summary is the headline
+            after = '';
         }
 
-        // If no "VERDICT:" label found, or text after it is empty, return null
-        return null;
+        // Return parts if headline is not empty
+        if (headline) {
+            return {
+                headline: headline,
+                after: after
+            };
+        }
+
+        return null; // Return null if cleanedSummary was empty or only whitespace
     };
 
-    const verdictParts = resultsData ? extractVerdictParts(resultsData.summary) : null;
+    // MODIFIED: Clean the summary text *before* processing it further
+    const cleanedSummary = resultsData?.summary ? cleanResponseText(resultsData.summary) : null;
+    const verdictParts = cleanedSummary ? extractVerdictParts(cleanedSummary) : null;
 
 
     return (
@@ -302,20 +300,18 @@ export default function SharedResultPage() {
                             </div>
 
                             {/* --- REMOVED Paraphrase Section --- */}
-                            {/* {resultsData.paraphrase && !resultsData.paraphrase.startsWith("[") && ( <div className="max-w-3xl mx-auto text-center"> <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">Situation Summary</h3> <blockquote className="text-base italic text-slate-800 bg-slate-100 p-4 rounded-lg border border-slate-300 shadow"> "{resultsData.paraphrase}" </blockquote> </div> )} */}
-                            {/* {resultsData.paraphrase && resultsData.paraphrase.startsWith("[") && ( <div className="max-w-3xl mx-auto"> <Alert type="warning" title="Context Summary Issue" message="Could not generate situation summary." /> </div> )} */}
 
                             {/* Verdict Section */}
-                            {resultsData.summary && !resultsData.summary.startsWith("[") && (
+                            {/* MODIFIED: Check cleanedSummary instead of resultsData.summary */}
+                            {cleanedSummary && !cleanedSummary.startsWith("[") && (
                                 <div className="border-t border-slate-700/40 pt-10 md:pt-12">
                                     <h2 className="text-2xl md:text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-teal-300 to-cyan-400 mb-6 text-center tracking-tight">The Quick Verdict</h2>
                                     <div className="bg-white text-slate-900 rounded-xl p-6 shadow-lg max-w-3xl mx-auto border border-slate-300">
-                                        {/* MODIFIED: Use extracted parts based on VERDICT: label */}
+                                        {/* MODIFIED: Use verdictParts derived from cleanedSummary */}
                                         {verdictParts ? (
                                             <div>
-                                                {/* Display extracted headline (text after VERDICT: up to first \n\n) */}
+                                                {/* Display extracted headline */}
                                                 <div className="bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-semibold p-3 rounded-lg mb-4 shadow-md">
-                                                    {/* Render headline using MarkdownRenderer to handle potential bolding etc. within it */}
                                                     <MarkdownRenderer content={verdictParts.headline} className="prose-sm prose-strong:text-white prose-p:text-white" isDark={true} />
                                                 </div>
                                                 {/* Render text after headline if any */}
@@ -324,14 +320,14 @@ export default function SharedResultPage() {
                                                 )}
                                             </div>
                                         ) : (
-                                            // If no VERDICT: label found, render the whole summary directly
-                                            // This acts as a fallback, though ideally the API should always provide the label
-                                            <MarkdownRenderer content={resultsData.summary} className="prose-sm" isDark={false} />
+                                            // Fallback: Render the whole cleaned summary if parts couldn't be extracted (e.g., empty after cleaning)
+                                            <MarkdownRenderer content={cleanedSummary} className="prose-sm" isDark={false} />
                                         )}
                                     </div>
                                 </div>
                             )}
-                            {resultsData.summary && resultsData.summary.startsWith("[") && ( <div className="max-w-3xl mx-auto"> <Alert type="warning" title="Verdict Issue" message="Could not generate the final verdict summary." /> </div> )}
+                            {/* MODIFIED: Check original summary for error indicator, but show generic message */}
+                            {resultsData?.summary && resultsData.summary.startsWith("[") && ( <div className="max-w-3xl mx-auto"> <Alert type="warning" title="Verdict Issue" message="Could not generate the final verdict summary." /> </div> )}
 
                             {/* Detailed Perspectives Section */}
                             {Array.isArray(resultsData.responses) && resultsData.responses.some(r => r?.response && !r.response.startsWith("[")) && (
@@ -347,7 +343,7 @@ export default function SharedResultPage() {
                                                     {selectedResponse.persona}
                                                 </h3>
                                                 <div className="text-[15px] leading-relaxed space-y-4">
-                                                    {/* MODIFIED: Clean the response text before rendering */}
+                                                    {/* Uses the updated cleanResponseText function */}
                                                     <MarkdownRenderer content={cleanResponseText(selectedResponse.response)} isDark={false} />
                                                 </div>
                                             </div>
@@ -357,7 +353,8 @@ export default function SharedResultPage() {
                                 </div>
                             )}
                             {/* Fallback message */}
-                            {!resultsData.summary && (!Array.isArray(resultsData.responses) || !resultsData.responses.some(r => r?.response && !r.response.startsWith("["))) && ( <div className="text-center text-slate-400 py-10"> No analysis could be generated for this input. </div> )}
+                            {/* MODIFIED: Check cleanedSummary existence */}
+                            {!cleanedSummary && (!Array.isArray(resultsData.responses) || !resultsData.responses.some(r => r?.response && !r.response.startsWith("["))) && ( <div className="text-center text-slate-400 py-10"> No analysis could be generated for this input. </div> )}
 
                             {/* --- ADDED CALL TO ACTION --- */}
                             <div className="text-center border-t border-slate-700/40 pt-10 md:pt-12">
