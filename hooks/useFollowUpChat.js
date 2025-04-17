@@ -4,12 +4,14 @@ import { useState, useRef, useCallback, useEffect } from 'react';
  * Custom hook to manage the state and logic for the interactive follow-up chat conversation.
  *
  * @param {Object} options - Configuration options for the hook.
- * @param {string} [options.context] - The original context/situation (used if originalContextId is not provided).
- * @param {string} [options.query] - The original query (used if originalContextId is not provided).
- * @param {string} [options.originalContextId] - The ID of the saved result (used for follow-ups on the results page).
+ * @param {string} [options.context] - The original context/situation. **Required for follow-up.**
+ * @param {string} [options.query] - The original query. **Required for follow-up.**
+ * @param {string} [options.originalContextId] - The ID of the saved result (used for context, but not sent directly).
  * @returns {Object} An object containing state values, ref, and handler functions.
  */
 export const useFollowUpChat = (options = {}) => {
+    // Destructure context and query directly. originalContextId might still be useful
+    // for identifying the session but isn't sent to the askFollowUp API anymore.
     const { context, query, originalContextId } = options;
 
     // State for Follow-up Conversation
@@ -39,16 +41,16 @@ export const useFollowUpChat = (options = {}) => {
 
     /**
      * Sends the current follow-up question to the API.
-     * Adapts the payload based on whether context/query or originalContextId was provided.
+     * Requires context and query to be provided in the hook options.
      */
     const handleSendFollowUp = useCallback(async (e) => {
         if (e) e.preventDefault(); // Prevent default form submission if called from event
         if (!followUpQuestion.trim() || !followUpPersonaId || isFollowUpLoading) return;
 
-        // Validate that we have enough info to make the API call
-        if (!originalContextId && (!context || !query)) {
-             console.error("Follow-up chat requires either originalContextId or context+query.");
-             setFollowUpError("Internal configuration error: Missing context for follow-up.");
+        // Validate that we have the required context and query from options
+        if (!context || !query) {
+             console.error("Follow-up chat requires context and query to be provided in hook options.");
+             setFollowUpError("Internal configuration error: Missing context/query for follow-up.");
              return;
         }
 
@@ -57,18 +59,15 @@ export const useFollowUpChat = (options = {}) => {
         setFollowUpError(null);
         const currentQuestion = followUpQuestion; // Capture question before clearing input
 
-        // Construct payload based on available options
+        // Construct payload - Always send context and query
         const payload = {
             question: currentQuestion,
             personaId: followUpPersonaId,
             history: followUpConversation, // Send history for context
+            context: context, // Send the actual context text
+            query: query,     // Send the actual query text
         };
-        if (originalContextId) {
-            payload.originalContextId = originalContextId;
-        } else {
-            payload.context = context;
-            payload.query = query;
-        }
+        // We no longer send originalContextId to this specific API endpoint
 
         try {
             const res = await fetch('/api/askFollowUp', {
@@ -83,6 +82,7 @@ export const useFollowUpChat = (options = {}) => {
                 let errorDetail = `API responded with status ${res.status}`;
                 try {
                     const errorJson = await res.json();
+                    // Use the specific error message from the API if available
                     errorDetail = errorJson.error || JSON.stringify(errorJson);
                 } catch { /* Ignore if response is not JSON */ }
                 throw new Error(errorDetail);
@@ -100,11 +100,13 @@ export const useFollowUpChat = (options = {}) => {
 
         } catch (err) {
             console.error("Error sending follow-up question:", err);
-            setFollowUpError(err.message || "An unknown error occurred.");
+            // Display the specific error message from the API or a generic one
+            setFollowUpError(err.message || "An unknown error occurred while getting the follow-up answer.");
         } finally {
             setIsFollowUpLoading(false);
         }
-    }, [followUpQuestion, followUpPersonaId, isFollowUpLoading, followUpConversation, context, query, originalContextId]); // Include options in dependencies
+    // Ensure context and query are included in dependencies
+    }, [followUpQuestion, followUpPersonaId, isFollowUpLoading, followUpConversation, context, query]);
 
     /**
      * Resets the state managed by this hook.

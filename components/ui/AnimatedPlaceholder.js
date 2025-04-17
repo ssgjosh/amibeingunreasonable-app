@@ -75,9 +75,10 @@ const AnimatedPlaceholder = ({ isActive }) => {
 
     return (
         <div className="absolute inset-0 pointer-events-none flex items-start p-4">
-            <div className="text-slate-500 text-xl font-light animate-pulse-slow">
+            {/* Use secondary foreground for placeholder text and cursor */}
+            <div className="text-secondary-foreground text-xl font-light animate-pulse-slow">
                 {displayText}
-                <span className="inline-block w-0.5 h-5 bg-slate-400 ml-0.5 animate-blink"></span>
+                <span className="inline-block w-0.5 h-5 bg-secondary-foreground ml-0.5 animate-blink"></span>
             </div>
         </div>
     );

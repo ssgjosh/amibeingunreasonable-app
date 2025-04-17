@@ -128,21 +128,27 @@ const LoadingScreen = ({ isApiComplete, isTakingLong }) => {
     }, [isTakingLong]);
 
     return (
-       <div className="fixed inset-0 bg-gradient-to-br from-slate-900 via-black to-slate-800 z-50 flex flex-col items-center justify-center p-8 text-center overflow-hidden">
-           <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-black to-indigo-900 animate-gradient-xy opacity-80"></div>
+       // Use solid background color to cover underlying content, including footer
+       <div className="fixed inset-0 bg-background z-50 flex flex-col items-center justify-center p-8 text-center overflow-hidden">
+           {/* Removed the overlay div */}
            <div className="relative z-10 flex flex-col items-center justify-center w-full max-w-md">
-               <svg className="animate-spin h-12 w-12 text-cyan-400 mb-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+               {/* Use primary color for spinner */}
+               <svg className="animate-spin h-12 w-12 text-primary mb-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                </svg>
-               <h2 className="text-3xl font-bold text-white mb-4 tracking-tight">Analysing Your Situation...</h2>
-               <div className="w-full bg-slate-700 rounded-full h-2.5 mb-6 overflow-hidden">
+               {/* Use foreground color for heading */}
+               <h2 className="text-3xl font-bold text-foreground mb-4 tracking-tight">Analysing Your Situation...</h2>
+               {/* Use secondary color for progress bar background */}
+               <div className="w-full bg-secondary rounded-full h-2.5 mb-6 overflow-hidden">
+                   {/* Use primary and accent for progress bar gradient */}
                    <div
-                       className={`bg-gradient-to-r from-cyan-400 to-blue-500 h-2.5 rounded-full ${progress < 100 ? 'transition-all duration-200 ease-linear' : 'transition-width duration-300 ease-out'} ${isTakingLong && !isApiComplete ? 'animate-pulse-bar' : ''}`}
+                       className={`bg-gradient-to-r from-primary to-accent h-2.5 rounded-full ${progress < 100 ? 'transition-all duration-200 ease-linear' : 'transition-width duration-300 ease-out'} ${isTakingLong && !isApiComplete ? 'animate-pulse-bar' : ''}`}
                        style={{ width: `${progress}%` }}
                    ></div>
                </div>
-               <p className="text-lg text-slate-400 transition-opacity duration-500 ease-in-out h-12">{loadingText}</p>
+               {/* Use secondary foreground color for loading text */}
+               <p className="text-lg text-secondary-foreground transition-opacity duration-500 ease-in-out h-12">{loadingText}</p>
            </div>
        </div>
    );

@@ -159,10 +159,14 @@ ${selectedPersona.prompt}
 "${query}"
 ${conversationHistoryString}
 --- Current Follow-up Question from User ---
-"${question}"
+User asks: "${question}"
 
 ---
-Your direct, concise, analytical response to the CURRENT follow-up question, staying in character as ${personaId} and considering the original context/query and previous turns (approx 100-150 words, using two newlines for paragraph breaks and **bold text** for emphasis):
+**Instructions for this Follow-up Response:**
+Respond *directly* and *conversationally* to the user's CURRENT follow-up question ("${question}").
+Maintain your core ${personaId} perspective (e.g., strategic for Coach, logical for Analyst, psychological for Therapist), but **DO NOT rigidly follow the multi-part structure** outlined in your initial persona instructions above.
+Focus on providing a clear, concise answer to the specific question asked, integrating insights from the original context/query and conversation history as needed.
+Use paragraph breaks (two newlines) and **bold text** for emphasis where appropriate. Aim for approximately 100-150 words.
 `;
     console.log(`ASK_FOLLOWUP: Sending prompt to ${personaId} (first 400 chars): ${fullPrompt.substring(0, 400)}...`);
 

@@ -117,13 +117,16 @@ export default function Home() {
     // Suspense Fallback UI
     const renderSuspenseFallback = () => (
         <div className="flex justify-center items-center min-h-[400px]">
-            <LoadingSpinner className="h-10 w-10 text-cyan-500" />
-            <p className="ml-4 text-lg text-slate-400">Loading Section...</p>
+            {/* Use primary color for spinner */}
+            <LoadingSpinner className="h-10 w-10 text-primary" />
+            {/* Use secondary foreground for text */}
+            <p className="ml-4 text-lg text-secondary-foreground">Loading Section...</p>
         </div>
     );
 
     return (
-        <main className="min-h-screen bg-gradient-to-br from-slate-900 via-black to-slate-800 py-12 sm:py-16 px-4 sm:px-6 lg:px-8 font-sans antialiased text-slate-300 animate-gradient-bg">
+        // Apply subtle gradient background instead of solid bg-background
+        <main className="min-h-screen bg-gradient-to-br from-background to-secondary/10 py-12 sm:py-16 px-4 sm:px-6 lg:px-8 font-sans antialiased text-foreground">
             {/* Loading screen covers everything when loading */}
             {loading && view === 'loading' && <LoadingScreen isApiComplete={false} isTakingLong={isTakingLong} />}
 
@@ -140,12 +143,14 @@ export default function Home() {
                  {/* Global Error Display (only show if not loading and view is 'input' after an error) */}
                  {error && view === 'input' && !loading && (
                     <div className="mt-8 max-w-3xl mx-auto">
+                        {/* Alert component updated separately */}
                         <Alert type="error" title="An Error Occurred" message={error} />
                         {/* Removed the "Start Over" button from here, restart happens via input form */}
                     </div>
                  )}
             </div>
-             <footer className="text-center mt-16 text-slate-500 text-sm px-4">
+             {/* Use secondary foreground for footer text */}
+             <footer className="text-center mt-16 text-secondary-foreground text-sm px-4">
                 © {new Date().getFullYear()} Am I Being Unreasonable?™ | AI Analysis Tool | For informational purposes only. Use results critically.
             </footer>
         </main>
