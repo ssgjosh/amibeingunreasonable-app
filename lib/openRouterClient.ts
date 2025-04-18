@@ -29,7 +29,7 @@ const openRouter = new OpenAI({
  * Generates a chat completion using the OpenRouter API.
  *
  * @param messages An array of message objects (e.g., [{ role: 'user', content: 'Hello!' }]).
- * @param model The model to use (defaults to 'openai/gpt-4o-mini').
+ * @param model The model to use (defaults to 'openai/gpt-4.1').
  * @param temperature Optional temperature setting (defaults to 0.7).
  * @param maxTokens Optional max tokens setting.
  * @returns A Promise resolving to the content of the assistant's response, or null if no content.
@@ -37,7 +37,7 @@ const openRouter = new OpenAI({
  */
 export async function getOpenRouterCompletion(
   messages: ChatCompletionMessageParam[],
-  model: string = "openai/gpt-4o-mini", // Default model specified by user
+  model: string = "openai/gpt-4.1", // Default model specified by user
   temperature: number = 0.7,
   maxTokens?: number
 ): Promise<string | null> {

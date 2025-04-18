@@ -34,7 +34,7 @@ async function callOpenRouterWithRetry(
     systemPrompt: string,
     userPrompt: string,
     numSnippets: number,
-    modelName: string = "openai/gpt-4o-mini", // Default OpenRouter model
+    modelName: string = "openai/gpt-4.1", // Default OpenRouter model
     temperature: number = 0.5, // Match previous config
     maxTokens?: number // *** CHANGED: Make maxTokens optional ***
 ): Promise<{ success: true; data: JudgeResultValidated } | { success: false; error: string; details?: any; status: number }> {
@@ -222,7 +222,7 @@ export async function POST(request: Request) {
   }
 
   // --- Define Model Config (Now passed to helper) ---
-  const modelName = "openai/gpt-4o-mini"; // Target model
+  const modelName = "openai/gpt-4.1"; // Target model
   const temperature = 0.5;
   // const maxOutputTokens = 2048; // REMOVED hardcoded limit
 
