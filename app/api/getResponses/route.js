@@ -1,3 +1,5 @@
+export const maxDuration = 300; // 5 minutes
+
 // FILE: src/app/api/getResponses/route.js
 // Removed: import { GoogleGenerativeAI } from '@google/generative-ai';
 import { getOpenRouterCompletion } from '@/lib/openRouterClient'; // Changed import
