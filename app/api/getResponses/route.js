@@ -1,9 +1,20 @@
 // FILE: src/app/api/getResponses/route.js
-import { GoogleGenerativeAI } from '@google/generative-ai';
+// Removed: import { GoogleGenerativeAI } from '@google/generative-ai';
+import { getOpenRouterCompletion } from '@/lib/openRouterClient'; // Changed import
+import { Redis } from '@upstash/redis'; // Import Redis
+import { nanoid } from 'nanoid'; // Import nanoid
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY);
+// Removed: const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY);
+
+// Initialize Upstash Redis client
+const redis = new Redis({
+  url: process.env.STORAGE_KV_REST_API_URL,
+  token: process.env.STORAGE_KV_REST_API_TOKEN,
+});
+
 
 // --- ROBUST Helper function to clean API response text ---
+// (Keep existing cleanApiResponseText function - unchanged)
 function cleanApiResponseText(text) {
     if (!text || typeof text !== 'string') return '';
     let cleaned = text;
@@ -31,6 +42,7 @@ function cleanApiResponseText(text) {
 }
 
 // --- PERSONA PROMPTS (v5.7 - Less formulaic, avoid repetition) ---
+// (Keep existing personas array - unchanged)
 const personas = [
     {
         name: "Therapist (Interaction Dynamics)",
@@ -101,242 +113,290 @@ export async function POST(request) {
         return Response.json({ error: "Specific query/worry required (min 5 chars)." }, { status: 400 });
     }
 
-    // --- API Key Check ---
-    if (!process.env.GEMINI_API_KEY && !process.env.GOOGLE_API_KEY) {
-        console.error("ROUTE API Key Error: Env var missing.");
+    // --- API Key Check (Updated) ---
+    if (!process.env.OPENROUTER_API_KEY) { // Changed check
+        console.error("ROUTE API Key Error: OPENROUTER_API_KEY env var missing.");
         return Response.json({ error: "Server configuration error: API key missing." }, { status: 500 });
     }
+    // --- Redis Config Check ---
+    if (!process.env.STORAGE_KV_REST_API_URL || !process.env.STORAGE_KV_REST_API_TOKEN) {
+        console.error("ROUTE Redis Config Error: Env var missing.");
+        return Response.json({ error: "Server configuration error: Storage credentials missing." }, { status: 500 });
+    }
 
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-thinking-exp-01-21" });
-    // *** FIX: Increased default generation config tokens (adjust if needed) ***
-    const generationConfig = {
-        temperature: 0.6,
-        maxOutputTokens: 800 // Increased default limit significantly
-    };
-    const summaryGenerationConfig = {
-        temperature: 0.6,
-        maxOutputTokens: 400 // Increased limit for summary too
-    };
-    const paraphraseGenerationConfig = {
-        temperature: 0.6,
-        maxOutputTokens: 80 // Slightly increased paraphrase limit just in case
-    };
+    // Removed: const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-thinking-exp-01-21" });
+
+    // Define model parameters (used in getOpenRouterCompletion calls)
+    const modelName = "openai/o4-mini-high"; // Target model
+    const defaultTemperature = 0.6;
+    // REMOVED: const paraphraseMaxTokens = 80;
+    // REMOVED: const personaMaxTokens = 800;
+    // REMOVED: const summaryMaxTokens = 400;
 
 
     // --- Generate Paraphrase ---
     console.log("\n--- ROUTE: Constructing Paraphrase Prompt ---");
     console.log("Context available for paraphrase prompt?", !!context);
-    const paraphrasePrompt = `
-    You are an expert summariser using **British English**. Read the context. Paraphrase the absolute core essence **from the user's perspective** in **one single, concise sentence** (max 25-30 words). Focus on the central conflict/circumstances. No analysis/opinion. Use British English.
 
-    Context: """${context}"""
+    const paraphraseSystemPrompt = `You are an expert summariser using **British English**. Read the context. Paraphrase the absolute core essence **from the user's perspective** in **one single, concise sentence** (max 25-30 words). Focus on the central conflict/circumstances. No analysis/opinion. Use British English. Output ONLY the single sentence.`;
+    const paraphraseUserPrompt = `Context: """${context}"""\n\nYour one-sentence paraphrase:`;
+    const paraphraseMessages = [
+        { role: 'system', content: paraphraseSystemPrompt },
+        { role: 'user', content: paraphraseUserPrompt }
+    ];
 
-    Your one-sentence paraphrase:`; // Simplified prompt structure slightly
-    console.log("--- FINAL Paraphrase Prompt being sent (first 300 chars): ---");
-    console.log(paraphrasePrompt.substring(0, 300) + "...\n");
+    console.log("--- FINAL Paraphrase Prompt being sent (System + User): ---");
+    console.log("System:", paraphraseSystemPrompt.substring(0, 100) + "...");
+    console.log("User:", paraphraseUserPrompt.substring(0, 100) + "...\n");
 
-    let paraphraseText = "[Paraphrase generation failed]";
+    let paraphraseText = "[Paraphrase generation failed]"; // Default error state
     try {
-        // *** Apply specific config ***
-        const paraphraseResult = await model.generateContent(paraphrasePrompt, paraphraseGenerationConfig);
-        const paraphraseResponse = await paraphraseResult.response;
-        const rawParaphrase = paraphraseResponse.text ? paraphraseResponse.text() : '';
+        const rawParaphrase = await getOpenRouterCompletion(
+            paraphraseMessages,
+            modelName,
+            defaultTemperature,
+            undefined // Pass undefined for maxTokens
+        );
         console.log("ROUTE Raw Paraphrase:", JSON.stringify(rawParaphrase));
-        paraphraseText = cleanApiResponseText(rawParaphrase);
-        if (!paraphraseText || paraphraseText.startsWith("[")) {
-            paraphraseText = "[Paraphrase generation failed]";
-            console.warn("Paraphrase generation returned error state or empty after cleaning.");
-        } else if (paraphraseText.split(' ').length > 35) {
-            console.warn("Generated paraphrase exceeded length constraint after cleaning.");
+
+        // *** CHANGED: Handle empty response without throwing immediately ***
+        if (rawParaphrase === null || rawParaphrase.trim() === "") {
+            console.warn("ROUTE: AI model returned an empty response for paraphrase.");
+            paraphraseText = "[Paraphrase Error: Empty response received]";
+        } else {
+            paraphraseText = cleanApiResponseText(rawParaphrase);
+            if (!paraphraseText || paraphraseText.startsWith("[")) { // Check if cleaning resulted in error state
+                paraphraseText = "[Paraphrase generation failed]";
+                console.warn("Paraphrase generation returned error state or empty after cleaning.");
+            } else if (paraphraseText.split(' ').length > 35) {
+                console.warn("Generated paraphrase exceeded length constraint after cleaning.");
+                // Optionally truncate or handle differently
+            }
         }
         console.log("ROUTE Cleaned Paraphrase:", JSON.stringify(paraphraseText));
     } catch (error) {
         console.error("ROUTE Error generating paraphrase:", error);
-        if (error.message && error.message.includes("API key not valid")) { paraphraseText = "[Paraphrase Error: Invalid API Key]"; }
-        else if (error.message && error.message.includes("quota")) { paraphraseText = "[Paraphrase Error: API Quota Exceeded]"; }
+        // Assign error text based on API error type
+        if (error.message && (error.message.includes("API key") || error.status === 401)) { paraphraseText = "[Paraphrase Error: Invalid API Key]"; }
+        else if (error.message && (error.message.includes("quota") || error.status === 429)) { paraphraseText = "[Paraphrase Error: API Quota Exceeded]"; }
         else { paraphraseText = `[Paraphrase Error: ${error.message || 'Unknown network/API issue'}]`; }
     }
 
     // --- Generate Persona Responses ---
-    const personaPromises = personas.map(async ({ name, prompt }) => {
+    const personaPromises = personas.map(async ({ name, prompt: personaSystemPrompt }) => {
         console.log(`\n--- ROUTE: Constructing ${name} Prompt ---`);
         console.log(`Context available for ${name} prompt?`, !!context);
         console.log(`Query available for ${name} prompt?`, !!query);
+
         // Prepare follow-up responses section if available
         let followUpSection = '';
         if (followUpResponses && Array.isArray(followUpResponses) && followUpResponses.length > 0) {
-            const validResponses = followUpResponses.filter(item =>
+            const validFollowUps = followUpResponses.filter(item =>
                 item && typeof item.question === 'string' && typeof item.answer === 'string' &&
                 item.question.trim() && item.answer.trim()
             );
-
-            if (validResponses.length > 0) {
-                followUpSection = `
-Additional Context from Follow-up Questions:
-${validResponses.map(item => `Q: ${item.question}\nA: ${item.answer}`).join('\n\n')}
-`;
+            if (validFollowUps.length > 0) {
+                followUpSection = `\n\nAdditional Context from Follow-up Questions:\n${validFollowUps.map(item => `Q: ${item.question}\nA: ${item.answer}`).join('\n\n')}`;
             }
         }
 
-        const fullPrompt = `
-${prompt}
-
+        const personaUserPrompt = `
 ---
 Context Provided:
 """${context}"""
 
 User's Specific Query/Worry about this Context:
-"${query}"
-${followUpSection}
+"${query}"${followUpSection}
 
 Your direct, concise, analytical response (approx 100-150 words, using two newlines for paragraph breaks and **bold text** for emphasis):
-    `; // Simplified prompt structure slightly
-        console.log(`--- FINAL ${name} Prompt being sent (first 400 chars): ---`);
-        console.log(fullPrompt.substring(0, 400) + "...\n");
+        `;
 
+        const personaMessages = [
+            { role: 'system', content: personaSystemPrompt },
+            { role: 'user', content: personaUserPrompt }
+        ];
+
+        console.log(`--- FINAL ${name} Prompt being sent (System + User): ---`);
+        console.log("System:", personaSystemPrompt.substring(0, 100) + "...");
+        console.log("User:", personaUserPrompt.substring(0, 100) + "...\n");
+
+        let personaResponseText = `[Analysis Error: Generation failed for ${name}]`; // Default error state
         try {
-            // *** Apply default (increased) config ***
-            const result = await model.generateContent(fullPrompt, generationConfig);
-            const response = await result.response;
-            const rawText = response.text ? response.text() : '';
-            console.log(`ROUTE Raw ${name} Response:`, JSON.stringify(rawText.substring(0,100))+"...");
-            let text = cleanApiResponseText(rawText); // Apply robust cleaning
-            console.log(`ROUTE Cleaned ${name} Response:`, JSON.stringify(text.substring(0,100))+"...");
+            const rawText = await getOpenRouterCompletion(
+                personaMessages,
+                modelName,
+                defaultTemperature,
+                undefined // Pass undefined for maxTokens
+            );
+            console.log(`ROUTE Raw ${name} Response:`, JSON.stringify(rawText?.substring(0,100))+"...");
 
-            // Post-cleaning check for Coach list format
-            if (name.includes("Coach") && /^\s*[1-9]+\.\s+/m.test(text)) {
-                console.warn(`Coach response contained numbered list despite prompt - attempting cleanup on: ${text.substring(0,50)}...`);
-                text = text.replace(/^\s*[1-9]+\.\s+/gm, '** ')
-                           .replace(/\n\n\*\*/g, '\n\n** ')
-                           .replace(/(\S+)\n(?!\n|\*\*)/g, '$1 ');
-                text = cleanApiResponseText(text); // Clean again
-                console.warn(`Coach response after cleanup attempt: ${text.substring(0,50)}...`)
-            }
+            // *** CHANGED: Handle empty response without throwing immediately ***
+            if (rawText === null || rawText.trim() === "") {
+                console.warn(`ROUTE: AI model returned an empty response for ${name}.`);
+                personaResponseText = `[Analysis Error: Empty response received for ${name}]`;
+            } else {
+                let text = cleanApiResponseText(rawText); // Apply robust cleaning
+                console.log(`ROUTE Cleaned ${name} Response:`, JSON.stringify(text.substring(0,100))+"...");
 
-            if (!text || text.length < 10) {
-                console.error(`ROUTE Empty or invalid response from persona ${name} after cleaning for query: ${query}`);
-                return { persona: name, response: "[Analysis Error: Empty response received]" };
+                // Post-cleaning check for Coach list format (keep this logic)
+                if (name.includes("Coach") && /^\s*[1-9]+\.\s+/m.test(text)) {
+                    console.warn(`Coach response contained numbered list despite prompt - attempting cleanup on: ${text.substring(0,50)}...`);
+                    text = text.replace(/^\s*[1-9]+\.\s+/gm, '** ')
+                               .replace(/\n\n\*\*/g, '\n\n** ')
+                               .replace(/(\S+)\n(?!\n|\*\*)/g, '$1 ');
+                    text = cleanApiResponseText(text); // Clean again
+                    console.warn(`Coach response after cleanup attempt: ${text.substring(0,50)}...`)
+                }
+
+                if (!text || text.length < 10) { // Check if cleaning resulted in empty/short text
+                    console.error(`ROUTE Empty or invalid response from persona ${name} after cleaning for query: ${query}`);
+                    personaResponseText = `[Analysis Error: Empty response received for ${name}]`;
+                } else {
+                    // UK English check (keep this logic)
+                    if (/\b(analyse|behaviour|colour|centre|realise|optimise)\b/i.test(text)) {
+                        console.warn(`ROUTE Potential US spelling detected in ${name} response.`);
+                    }
+                    personaResponseText = text; // Assign successful response
+                }
             }
-            // *** CORRECTED REGEX FOR UK ENGLISH ***
-            if (/\b(analyse|behaviour|colour|centre|realise|optimise)\b/i.test(text)) {
-                console.warn(`ROUTE Potential US spelling detected in ${name} response.`);
-            }
-            return { persona: name, response: text };
         } catch (error) {
             console.error(`ROUTE Error generating response for persona ${name}:`, error);
-             let personaError = `[Analysis Error: ${error.message || 'Unknown error'}]`;
-             if (error.message && error.message.includes("API key not valid")) { personaError = "[Analysis Error: Invalid API Key]"; }
-             else if (error.message && error.message.includes("quota")) { personaError = "[Analysis Error: API Quota Exceeded]"; }
-             else if (error.message && error.message.includes("SAFETY")) { personaError = "[Analysis Error: Content blocked by safety filter]"; }
-            return { persona: name, response: personaError };
+             // Assign error text based on API error type
+             if (error.message && (error.message.includes("API key") || error.status === 401)) { personaResponseText = "[Analysis Error: Invalid API Key]"; }
+             else if (error.message && (error.message.includes("quota") || error.status === 429)) { personaResponseText = "[Analysis Error: API Quota Exceeded]"; }
+             // else if (error.message && error.message.includes("SAFETY")) { personaResponseText = "[Analysis Error: Content blocked by safety filter]"; }
+             else { personaResponseText = `[Analysis Error: ${error.message || 'Unknown error'}]`; }
         }
+        // Always return an object, even if response is an error string
+        return { persona: name, response: personaResponseText };
     });
+
     const responses = await Promise.all(personaPromises);
+    // Filter for valid responses *after* all promises resolve
     const validResponses = responses.filter(r => r.response && !r.response.startsWith("["));
 
+    // --- Error Message Aggregation (logic remains the same) ---
     let errorMessage = null;
     const errorMessages = [...new Set(responses
         .map(r => r.response)
-        .filter(r => r && r.startsWith("["))
+        .filter(r => r && r.startsWith("[")) // Collect all error strings
         .map(e => e.replace(/^\[|\]$/g, ''))
     )];
-
-    if (paraphraseText.startsWith("[")) {
+    if (paraphraseText.startsWith("[")) { // Check paraphrase error state
         const paraphraseErrorMsg = paraphraseText.replace(/^\[|\]$/g, '');
         if (!errorMessages.some(msg => msg.includes('Paraphrase Error'))) {
             errorMessages.push(paraphraseErrorMsg);
         }
     }
-
+    // Check if *any* valid responses were generated
     if (validResponses.length === 0) {
         errorMessage = errorMessages.length > 0
             ? `Analysis failed. Issues: ${errorMessages.join('; ')}`
             : "Analysis failed: Could not generate insights from any perspective.";
         console.error("ROUTE: No valid persona responses generated. Returning 500.");
-        return Response.json({ error: errorMessage, responses: [], summary: '', paraphrase: paraphraseText }, { status: 500 });
-
+        const resultId = nanoid(10);
+        // Return 500 only if *nothing* worked
+        return Response.json({
+            resultId: resultId, error: errorMessage, responses: [], summary: '', paraphrase: paraphraseText
+        }, { status: 500 });
     } else if (errorMessages.length > 0) {
+        // If some responses worked but others failed, report as partial success
         errorMessage = `Analysis may be incomplete. Issues: ${errorMessages.join('; ')}`;
     }
 
 
     // --- Generate Summary ---
-    let summaryText = "[Summary generation failed]";
-    if (validResponses.length > 0) {
+    let summaryText = "[Summary generation failed]"; // Default error state
+    if (validResponses.length > 0) { // Only generate summary if we have something to summarize
         console.log(`\n--- ROUTE: Constructing Summary Prompt ---`);
         console.log(`Found ${validResponses.length} valid responses for summary.`);
-        // Prepare follow-up responses section if available
+
+        // Prepare follow-up responses section if available (same as above)
         let followUpSection = '';
         if (followUpResponses && Array.isArray(followUpResponses) && followUpResponses.length > 0) {
-            const validResponses = followUpResponses.filter(item =>
+            const validFollowUps = followUpResponses.filter(item =>
                 item && typeof item.question === 'string' && typeof item.answer === 'string' &&
                 item.question.trim() && item.answer.trim()
             );
-
-            if (validResponses.length > 0) {
-                followUpSection = `
-Additional Context from Follow-up Questions:
-${validResponses.map(item => `Q: ${item.question}\nA: ${item.answer}`).join('\n\n')}
-`;
+            if (validFollowUps.length > 0) {
+                followUpSection = `\n\nAdditional Context from Follow-up Questions:\n${validFollowUps.map(item => `Q: ${item.question}\nA: ${item.answer}`).join('\n\n')}`;
             }
         }
 
-         const summaryPrompt = `
-      Based *only* on the analyses provided below, synthesize their critical conclusions into a unified verdict regarding the user's query about the context. Address 'you' directly. Use **plain British English**. Be direct, definitive, helpful. Use paragraph breaks (two newlines). **Emphasise key findings/actions using double asterisks** where appropriate for clarity, but do not rely on it for structure. Target 90-120 words.
+         const summarySystemPrompt = `
+Based *only* on the analyses provided below, synthesize their critical conclusions into a unified verdict regarding the user's query about the context. Address 'you' directly. Use **plain British English**. Be direct, definitive, helpful. Use paragraph breaks (two newlines). **Emphasise key findings/actions using double asterisks** where appropriate for clarity, but do not rely on it for structure. Target 90-120 words.
 
-      **CRITICAL:** Provide a direct, concise verdict **specifically answering the user's original query**: "${query}" **as the very first sentence**. State your position clearly with minimal hedging.
+**CRITICAL:** Provide a direct, concise verdict **specifically answering the user's original query**: "${query}" **as the very first sentence**. State your position clearly with minimal hedging.
 
-      **CRITICAL:** NO persona names, NO meta-talk about summarizing, NO references to "the analyses" or "based on the analyses", NO greetings. Start directly with the verdict statement, then provide the rest of the direct feedback as if speaking directly to the user.
+**CRITICAL:** NO persona names, NO meta-talk about summarizing, NO references to "the analyses" or "based on the analyses", NO greetings. Start directly with the verdict statement, then provide the rest of the direct feedback as if speaking directly to the user.
+         `;
+         const summaryUserPrompt = `
+Analyses Provided for Synthesis:
+${validResponses.map(r => `### ${r.persona}\n${r.response}`).join('\n\n')}${followUpSection}
 
-      Analyses Provided for Synthesis:
-      ${validResponses.map(r => `### ${r.persona}\n${r.response}`).join('\n\n')}
-      ${followUpSection}
+---
+Your Synthesized Verdict (starting directly with the verdict sentence):
+         `;
+         const summaryMessages = [
+             { role: 'system', content: summarySystemPrompt },
+             { role: 'user', content: summaryUserPrompt }
+         ];
 
-      ---
-      Your Synthesized Verdict (starting directly with the verdict sentence):`; // Removed VERDICT label instruction
-       console.log(`--- FINAL Summary Prompt being sent (first 500 chars): ---`);
-       console.log(summaryPrompt.substring(0, 500) + "...\n");
+       console.log(`--- FINAL Summary Prompt being sent (System + User): ---`);
+       console.log("System:", summarySystemPrompt.substring(0, 100) + "...");
+       console.log("User:", summaryUserPrompt.substring(0, 100) + "...\n");
 
         try {
-            // *** Apply specific config ***
-            const summaryResult = await model.generateContent(summaryPrompt, summaryGenerationConfig);
-            const summaryResponse = await summaryResult.response;
-            const rawSummary = summaryResponse.text ? summaryResponse.text() : '';
+            const rawSummary = await getOpenRouterCompletion(
+                summaryMessages,
+                modelName,
+                defaultTemperature,
+                undefined // Pass undefined for maxTokens
+            );
             console.log("ROUTE Raw Summary:", JSON.stringify(rawSummary));
-            summaryText = cleanApiResponseText(rawSummary); // Apply robust cleaning
-            console.log("ROUTE Cleaned Summary:", JSON.stringify(summaryText));
 
-            const lowerCaseSummary = summaryText.toLowerCase();
-            const forbiddenWords = ["therapist", "analyst", "coach", "synthesis", "template", "summarize", "summary template"];
-            const forbiddenStarts = ["okay, i understand", "here's a summary", "based on the analyses", "in summary,"];
+            // *** CHANGED: Handle empty response without throwing immediately ***
+            if (rawSummary === null || rawSummary.trim() === "") {
+                 console.warn("ROUTE: AI model returned an empty response for summary.");
+                 summaryText = "[Summary Error: Empty response received]";
+            } else {
+                summaryText = cleanApiResponseText(rawSummary); // Apply robust cleaning
+                console.log("ROUTE Cleaned Summary:", JSON.stringify(summaryText));
 
-            if ( !summaryText || summaryText.length < 10 || summaryText.length > 1000 || summaryText.startsWith("[") ||
-                 (forbiddenWords.some(word => lowerCaseSummary.includes(word)) ||
-                  forbiddenStarts.some(start => lowerCaseSummary.startsWith(start))) ) {
-                 console.warn("ROUTE Generated summary seems invalid (failed checks or too short/long) after cleaning:", summaryText);
-                 const failureReason = summaryText && summaryText.startsWith("[") ? summaryText : "[Summary generation failed - invalid content received]";
-                 summaryText = failureReason;
-                 const summaryErrorMsg = failureReason.replace(/^\[|\]$/g, '');
-                 if (!errorMessage) errorMessage = summaryErrorMsg;
-                 else if (!errorMessage.includes(summaryErrorMsg)) errorMessage += `; ${summaryErrorMsg}`;
-            }
-            // *** CORRECTED REGEX FOR UK ENGLISH ***
-            if (summaryText && /\b(analyse|behaviour|colour|centre|realise|optimise)\b/i.test(summaryText)) {
-                console.warn(`ROUTE Potential US spelling detected in Summary response.`);
+                // Summary validation checks (keep existing logic)
+                const lowerCaseSummary = summaryText.toLowerCase();
+                const forbiddenWords = ["therapist", "analyst", "coach", "synthesis", "template", "summarize", "summary template"];
+                const forbiddenStarts = ["okay, i understand", "here's a summary", "based on the analyses", "in summary,"];
+                if ( !summaryText || summaryText.length < 10 || summaryText.length > 1000 || summaryText.startsWith("[") || // Check if cleaning resulted in error state
+                     (forbiddenWords.some(word => lowerCaseSummary.includes(word)) ||
+                      forbiddenStarts.some(start => lowerCaseSummary.startsWith(start))) ) {
+                     console.warn("ROUTE Generated summary seems invalid (failed checks or too short/long) after cleaning:", summaryText);
+                     const failureReason = summaryText && summaryText.startsWith("[") ? summaryText : "[Summary generation failed - invalid content received]";
+                     summaryText = failureReason; // Assign error state
+                }
+                // UK English check (keep this logic)
+                if (summaryText && !summaryText.startsWith("[") && /\b(analyse|behaviour|colour|centre|realise|optimise)\b/i.test(summaryText)) {
+                    console.warn(`ROUTE Potential US spelling detected in Summary response.`);
+                }
             }
 
         } catch (error) {
             console.error("ROUTE Error generating summary:", error);
-            let summaryError = `[Summary generation failed: ${error.message || 'Unknown error'}]`;
-            if (error.message && error.message.includes("API key not valid")) { summaryError = "[Summary Error: Invalid API Key]"; }
-            else if (error.message && error.message.includes("quota")) { summaryError = "[Summary Error: API Quota Exceeded]"; }
-            else if (error.message && error.message.includes("SAFETY")) { summaryError = "[Summary Error: Content blocked by safety filter]"; }
-            summaryText = summaryError;
-            const summaryErrorMsg = summaryError.replace(/^\[|\]$/g, '');
-            if (!errorMessage) errorMessage = summaryErrorMsg;
-            else if (!errorMessage.includes(summaryErrorMsg)) errorMessage += `; ${summaryErrorMsg}`;
+            // Assign error text based on API error type
+            if (error.message && (error.message.includes("API key") || error.status === 401)) { summaryText = "[Summary Error: Invalid API Key]"; }
+            else if (error.message && (error.message.includes("quota") || error.status === 429)) { summaryText = "[Summary Error: API Quota Exceeded]"; }
+            // else if (error.message && error.message.includes("SAFETY")) { summaryText = "[Summary Error: Content blocked by safety filter]"; }
+            else { summaryText = `[Summary generation failed: ${error.message || 'Unknown error'}]`; }
         }
+        // Add summary error to overall message if needed
+        if (summaryText.startsWith("[")) {
+             const summaryErrorMsg = summaryText.replace(/^\[|\]$/g, '');
+             if (!errorMessage) errorMessage = summaryErrorMsg;
+             else if (!errorMessage.includes(summaryErrorMsg)) errorMessage += `; ${summaryErrorMsg}`;
+        }
+
     } else {
+        // Keep existing logic for skipping summary
         console.warn("ROUTE Skipping summary generation as there were no valid persona responses (already handled).");
         summaryText = "[Summary generation skipped - no valid analysis provided]";
         const skipMsg = "Summary generation skipped";
@@ -344,18 +404,49 @@ ${validResponses.map(item => `Q: ${item.question}\nA: ${item.answer}`).join('\n\
         else if (!errorMessage.includes(skipMsg)) errorMessage += "; " + skipMsg;
     }
 
+    // Add paraphrase error if not already included (keep existing logic)
     if (paraphraseText.startsWith("[") && (!errorMessage || !errorMessage.includes("Paraphrase Error"))) {
         const paraphraseErrorMsg = paraphraseText.replace(/^\[|\]$/g, '');
         if (!errorMessage) errorMessage = paraphraseErrorMsg;
         else if (!errorMessage.includes(paraphraseErrorMsg)) errorMessage += "; " + paraphraseErrorMsg;
     }
 
-    console.log("ROUTE Returning final response to frontend:", { error: errorMessage, summary: summaryText.substring(0,50)+"...", paraphrase: paraphraseText.substring(0,50)+"...", responsesCount: validResponses.length });
+    // --- Save Results to Redis (logic remains the same) ---
+    const resultId = nanoid(10);
+    const key = `result:${resultId}`;
+    console.log(`ROUTE Generated result ID: ${resultId}`);
+    const generatedSnippets = []; // Placeholder
+    const dataToSave = {
+      context: context,
+      query: query,
+      summary: summaryText, // Save summary (even if it's an error string)
+      paraphrase: paraphraseText, // Save paraphrase (even if it's an error string)
+      // Save only responses that didn't fail, but include error strings in the overall errorMessage
+      responses: JSON.stringify(validResponses),
+      snippets: JSON.stringify(generatedSnippets),
+      timestamp: new Date().toISOString(),
+      followUpResponses: JSON.stringify(followUpResponses || [])
+    };
+    try {
+        await redis.hset(key, dataToSave);
+        console.log(`ROUTE Successfully saved results to Redis key: ${key}`);
+    } catch (redisError) {
+        console.error(`ROUTE Failed to save results to Redis key ${key}:`, redisError);
+        const redisErrorMsg = `Failed to save results: ${redisError.message || 'Unknown Redis error'}`;
+        if (!errorMessage) errorMessage = redisErrorMsg;
+        else errorMessage += `; ${redisErrorMsg}`;
+        // Return 500 if saving fails
+        return Response.json({
+            resultId: resultId, error: errorMessage,
+        }, { status: 500 });
+    }
+
+    // --- Return Response with ID (logic remains the same) ---
+    // Return 200 OK, include aggregated error message if any part failed
+    console.log("ROUTE Returning final response with resultId to frontend:", { resultId: resultId, error: errorMessage, summary: summaryText.substring(0,50)+"...", paraphrase: paraphraseText.substring(0,50)+"...", responsesCount: validResponses.length });
     return Response.json({
-        responses: validResponses,
-        summary: summaryText,
-        paraphrase: paraphraseText,
-        error: errorMessage,
+        resultId: resultId,
+        error: errorMessage, // Include aggregated errors
         followUpIncluded: !!(followUpResponses && Array.isArray(followUpResponses) && followUpResponses.length > 0)
     });
 }

@@ -1,9 +1,5 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
-// Removed Redis import as we get context/query directly
+import { getOpenRouterCompletion } from '@/lib/openRouterClient'; // Changed import
 import { NextResponse } from 'next/server';
-
-// Initialize AI client
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY);
 
 // --- ROBUST Helper function to clean API response text (Copied from getResponses) ---
 // (Keep this function as it's still used for the follow-up response)
@@ -78,9 +74,9 @@ export async function POST(request) {
         return NextResponse.json({ error: "Original query required (min 5 chars)." }, { status: 400 });
     }
 
-    // --- API Key Check ---
-    if (!process.env.GEMINI_API_KEY && !process.env.GOOGLE_API_KEY) {
-        console.error("ASK_FOLLOWUP API Key Error: Env var missing.");
+    // --- API Key Check (Updated) ---
+    if (!process.env.OPENROUTER_API_KEY) { // Changed check
+        console.error("ASK_FOLLOWUP API Key Error: OPENROUTER_API_KEY env var missing.");
         return NextResponse.json({ error: "Server configuration error: API key missing." }, { status: 500 });
     }
 
@@ -128,19 +124,34 @@ Use paragraph breaks (two newlines) and **bold text** for emphasis where appropr
 `;
     console.log(`ASK_FOLLOWUP: Sending prompt to ${personaId} (first 400 chars): ${fullPrompt.substring(0, 400)}...`);
 
-    // --- Call AI Model ---
-    // Consider using the same model as /api/judge if consistency is desired
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
-    const generationConfig = {
-        temperature: 0.6,
-        maxOutputTokens: 800 // Keep sufficient tokens for conversational response
-    };
+    // --- Define model parameters (used in getOpenRouterCompletion calls) ---
+    const modelName = "openai/o4-mini-high"; // Target model
+    const defaultTemperature = 0.6;
 
+    // --- Call OpenRouter API ---
     try {
-        const result = await model.generateContent(fullPrompt, generationConfig);
-        const response = await result.response;
-        const rawText = response.text ? response.text() : '';
-        console.log(`ASK_FOLLOWUP Raw ${personaId} Response:`, JSON.stringify(rawText.substring(0,100))+"...");
+        // Create messages array for OpenRouter
+        const messages = [
+            { role: 'system', content: `You are acting as a ${perspective}.` },
+            { role: 'user', content: fullPrompt }
+        ];
+
+        // Call OpenRouter API
+        const rawText = await getOpenRouterCompletion(
+            messages,
+            modelName,
+            defaultTemperature,
+            undefined // Pass undefined for maxTokens
+        );
+        
+        console.log(`ASK_FOLLOWUP Raw ${personaId} Response:`, JSON.stringify(rawText?.substring(0,100))+"...");
+
+        // Handle empty response without throwing immediately
+        if (rawText === null || rawText.trim() === "") {
+            console.error(`ASK_FOLLOWUP Empty response from ${personaId} for question: ${question}`);
+            return NextResponse.json({ error: "Analysis Error: Empty response received from AI." }, { status: 500 });
+        }
+
         let cleanedText = cleanApiResponseText(rawText);
         console.log(`ASK_FOLLOWUP Cleaned ${personaId} Response:`, JSON.stringify(cleanedText.substring(0,100))+"...");
 
@@ -161,16 +172,13 @@ Use paragraph breaks (two newlines) and **bold text** for emphasis where appropr
         console.error(`ASK_FOLLOWUP Error generating response for ${personaId}:`, error);
         let errorMessage = `[Analysis Error: ${error.message || 'Unknown error'}]`;
         let statusCode = 500;
-        const blockReason = error?.response?.promptFeedback?.blockReason;
 
-        if (blockReason) {
-            errorMessage = `Content blocked by safety filters: ${blockReason}`;
-            statusCode = 400;
-        } else if (error.message) {
-            if (error.message.includes("API key not valid")) {
+        // Handle OpenRouter specific errors
+        if (error.message) {
+            if (error.message.includes("API key") || error.status === 401) {
                 errorMessage = "Server configuration error: Invalid API Key.";
                 statusCode = 500;
-            } else if (error.message.includes("quota")) {
+            } else if (error.message.includes("quota") || error.status === 429) {
                 errorMessage = "API quota exceeded. Please try again later.";
                 statusCode = 429;
             } else {

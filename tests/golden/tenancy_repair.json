@@ -3,7 +3,7 @@
     "context": "I've been renting my flat for two years. For the past month, the boiler has been making strange noises and often fails to provide hot water, especially in the mornings. I reported this to my landlord via email three weeks ago, and again last week. He replied once saying he'd 'look into it' but nothing has happened. It's getting really cold now and having unreliable hot water is becoming a major problem.",
     "query": "Am I being unreasonable to expect my landlord to fix the boiler urgently?"
   },
-  "expected_output_pattern": {
-    "summary_contains_citation": true 
+  "expected": {
+    "expectCitation": true
   }
 }

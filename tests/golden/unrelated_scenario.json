@@ -1,0 +1,9 @@
+{
+  "input": {
+    "context": "My friend keeps borrowing my favourite gardening tools and returning them dirty or sometimes not at all. I've mentioned it politely a couple of times, but it keeps happening. It's starting to really annoy me because I take good care of my things.",
+    "query": "Am I being unreasonable to consider asking my friend to replace a trowel they lost?"
+  },
+  "expected": {
+    "expectCitation": false
+  }
+}

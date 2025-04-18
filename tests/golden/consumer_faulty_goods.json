@@ -1,0 +1,9 @@
+{
+  "input": {
+    "context": "I bought a new TV from the shop last month, and it's already stopped working. The screen just went blank. I think it's faulty.",
+    "query": "What are my rights regarding this faulty TV?"
+  },
+  "expected": {
+    "expectCitation": true
+  }
+}

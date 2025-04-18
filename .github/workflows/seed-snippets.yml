@@ -1,0 +1,41 @@
+# GitHub Action: Manually Seed RAG Snippets Cache
+#
+# Allows manually triggering a job to pre-populate the Upstash Redis cache
+# with snippets extracted from the WHITELISTED_SOURCES.
+# This should be run after deployment or whenever the source list changes significantly.
+
+name: Manually Seed Snippets Cache
+
+on:
+  workflow_dispatch: # Allows manual triggering from the GitHub Actions UI
+
+jobs:
+  seed-cache:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15 # Set a timeout for the job
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18' # Use Node.js v18 or match project requirement
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 8 # Or match project's pnpm version if specified
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile # Use --frozen-lockfile for CI consistency
+
+      - name: Run snippet seeder script
+        run: pnpm run seed:snippets
+        env:
+          # Pass Redis credentials securely from GitHub secrets
+          STORAGE_KV_REST_API_URL: ${{ secrets.STORAGE_KV_REST_API_URL }}
+          STORAGE_KV_REST_API_TOKEN: ${{ secrets.STORAGE_KV_REST_API_TOKEN }}
+          # Ensure NODE_ENV is set if the script depends on it (optional)
+          # NODE_ENV: 'production'

@@ -41,40 +41,49 @@ export async function GET(request, context) {
     // Helper function to safely get and potentially parse array data
     // Assumes Upstash driver might return stringified JSON or already parsed objects/arrays
     const getArrayData = (field) => {
-        if (!field) return []; // Return empty array if field is null/undefined
+        if (!field) return undefined; // Return undefined if field is null/undefined
         if (Array.isArray(field)) return field; // Already an array
         if (typeof field === 'string') {
             try {
                 const parsed = JSON.parse(field);
-                return Array.isArray(parsed) ? parsed : []; // Return parsed array or empty if not array
+                // Return parsed array or undefined if not array (or parsing failed)
+                return Array.isArray(parsed) ? parsed : undefined;
             } catch (e) {
                 console.warn(`Field for key ${key} was a string but not valid JSON:`, field, e);
-                return []; // Not valid JSON string
+                return undefined; // Not valid JSON string
             }
         }
         console.warn(`Field for key ${key} is neither string nor array:`, typeof field);
-        return []; // Unexpected type
+        return undefined; // Unexpected type
     };
 
 
     // Filter and structure the data for the public share page.
-    // REMOVED explicit JSON.parse, assuming hgetall returns appropriate types or strings
-    // Use helper function for arrays to handle different possibilities
+    // Include the snippets field using the helper function.
     const publicResultsData = {
       context: fullResultsData.context || 'No context provided.',
-      query: fullResultsData.query || 'No question provided.', // *** CORRECTED: Use fullResultsData.query ***
-      summary: fullResultsData.summary || null, // Use null if missing
-      quickVerdict: fullResultsData.quickVerdict || null, // Use null if missing
-      // Safely get array data
-      answers: getArrayData(fullResultsData.answers),
-      responses: getArrayData(fullResultsData.responses),
+      query: fullResultsData.query || 'No question provided.',
+      summary: fullResultsData.summary || null,
+      quickVerdict: fullResultsData.quickVerdict || null, // Keep if used elsewhere, otherwise potentially remove
+      // Safely get array data, returning undefined if not present or invalid
+      answers: getArrayData(fullResultsData.answers), // Keep if used elsewhere
+      responses: getArrayData(fullResultsData.responses), // This holds the 'personas' data
       followUpResponses: getArrayData(fullResultsData.followUpResponses),
+      snippets: getArrayData(fullResultsData.snippets), // *** ADDED snippets field ***
       // Other fields
       timestamp: fullResultsData.timestamp || null,
       paraphrase: fullResultsData.paraphrase || null,
     };
 
-    console.log(`Returning structured public data for key: ${key}`); // Removed data logging for brevity
+    // Remove fields that are explicitly undefined before sending
+    Object.keys(publicResultsData).forEach(key => {
+        if (publicResultsData[key] === undefined) {
+            delete publicResultsData[key];
+        }
+    });
+
+
+    console.log(`Returning structured public data for key: ${key}`);
 
     // Return the structured public results data object
     return NextResponse.json(publicResultsData, { status: 200 });

@@ -1,104 +1,154 @@
-# RAG Layer Implementation Plan
+# RAG Implementation Plan
 
-**Goal:** Enhance AI responses by fetching, caching, and injecting relevant text snippets from external sources, requiring the AI to cite them, and validating these citations.
+## Overview
 
-**Plan:**
+This plan outlines the steps to implement a Retrieval-Augmented Generation (RAG) layer for the application. The RAG layer will fetch relevant 80-word snippets from a fixed whitelist of UK statutory/charity URLs based on domain detection (keyword matching), cache these snippets in Upstash Redis, and inject them into the Gemini prompt. The AI will be instructed to cite these sources using `[n]` notation, which the backend will validate and the frontend will render as clickable links.
 
-1.  **Dependency Check & Installation (if needed):**
-    *   Verify if `@upstash/redis` is listed in `package.json`.
-    *   If not, add it (`npm install @upstash/redis`). (Note: User confirmed `Redis.fromEnv()` works, implying the package is likely present, but verification is good practice.)
+## Phases
 
-2.  **Create Snippet Retrieval Logic (`lib/retrieveSnippets.ts`):**
-    *   Create a new file: `lib/retrieveSnippets.ts`.
-    *   Import `Redis` from `@upstash/redis`.
-    *   Define the `SOURCES` constant map with domains (`parenting`, `tenancy`, `workplace`) and their corresponding URLs.
-    *   Implement an asynchronous function `retrieveSnippets(domain: string): Promise<string[]>`:
-        *   Initialize Redis client: `const redis = Redis.fromEnv();`
-        *   Get URLs for the given `domain` from `SOURCES`. If the domain is invalid or has no URLs, return an empty array.
-        *   Initialize an empty array `snippets`.
-        *   Loop through the URLs (max 2 per domain):
-            *   Construct the cache key: `const cacheKey = \`snippet:${domain}:${url}\`;`
-            *   Attempt to fetch from cache: `let snippet = await redis.get<string>(cacheKey);`
-            *   **If `snippet` is null (cache miss):**
-                *   Fetch the `url` using `fetch`. Use a `try...catch` block for network errors.
-                *   If fetch is successful:
-                    *   Get the HTML content as text: `const html = await response.text();`
-                    *   Strip HTML tags: Use a simple regex like `html.replace(/<[^>]*>/g, '')`.
-                    *   Extract the first paragraph: Use a regex like `/<p>(.*?)<\/p>/is` to find the first match. Get the captured group. Handle cases where no `<p>` tag is found.
-                    *   Clean up whitespace: Trim and replace multiple spaces/newlines.
-                    *   Truncate to ~80 words: `snippet = text.split(/\s+/).slice(0, 80).join(' ') + (text.split(/\s+/).length > 80 ? '...' : '');`
-                    *   Cache the result: `await redis.set(cacheKey, snippet, { ex: 86400 });` (24-hour TTL)
-                *   If fetch fails or processing errors occur, log the error and set `snippet` to an empty string.
-            *   If `snippet` is not empty, add it to the `snippets` array.
-        *   Return the `snippets` array.
+1.  **Foundational Setup & Configuration:** Prepare dependencies and Redis connection.
+2.  **Core RAG Logic:** Implement domain detection, snippet retrieval, prompt integration, and citation validation.
+3.  **Supporting Components & Infrastructure:** Add seeder script, CI action, update frontend, tests, fix icons, and update docs.
 
-3.  **Integrate into API Route (`app/api/judge/route.ts`):**
-    *   **Import:** Add `import { retrieveSnippets } from '@/lib/retrieveSnippets';`.
-    *   **Domain Detection:**
-        *   Inside the `POST` handler, before prompt construction.
-        *   Define keyword mappings for `parenting`, `tenancy`, `workplace`.
-        *   Determine `detectedDomain` based on keywords in `context`. Default to `'default'`.
-    *   **Snippet Retrieval:**
-        *   After domain detection, call `retrieveSnippets(detectedDomain)` if domain is not `'default'`. Handle errors gracefully.
-    *   **Prompt Injection:**
-        *   Modify `fullPrompt` construction.
-        *   Create a `<REFERENCES>` block conditionally if `snippets` array is not empty.
-        *   Insert the `referencesBlock` into the `fullPrompt`.
-        *   Add citation rules (points 5 & 6) to the `**Output Requirements:**` section.
-    *   **Post-Response Validation (Citation Check):**
-        *   Modify `callGenerativeAIWithRetry` function signature to accept `numSnippets`.
-        *   After successful Zod validation, extract citations `[n]` from `summary` and `rationale` fields.
-        *   Check if any citation number `n` is invalid ( `n <= 0 || n > numSnippets`).
-        *   If invalid citations found:
-            *   Log a warning.
-            *   Set `lastError`.
-            *   If it's the first attempt (`retryCount === 0`), increment `retryCount` and `continue` to retry.
-            *   Otherwise (failed after retry), return the error.
-        *   Update the call in the `POST` handler: `await callGenerativeAIWithRetry(model, fullPrompt, snippets.length);`
+## Detailed Steps
 
-4.  **Update Tests (`tests/judge.test.ts`):**
-    *   Create a new golden file: `tests/golden/tenancy_repair.json` with relevant `context` and `query`.
-    *   Add a new test case for tenancy repair.
-    *   Load input from `tenancy_repair.json`.
-    *   Call the API endpoint.
-    *   Assert status 200.
-    *   Assert that the `summary` field matches the regex `.*\[\d+\].*`.
+1.  **Dependencies:**
+    *   Add `ts-node` to `devDependencies` in `package.json`.
+    *   Create `lib/approvedSources.ts` exporting `WHITELISTED_SOURCES: { domain: string, url: string }[]`. Populate this with the actual approved URLs and their corresponding domains (e.g., 'parenting', 'tenancy').
 
-5.  **Documentation:**
-    *   Briefly mention the new RAG feature in `README.md`.
-    *   Confirm necessary environment variables (`STORAGE_REDIS_URL`, etc.) are documented/handled.
+2.  **Redis Client:**
+    *   Ensure the `@upstash/redis` client instance correctly reads `process.env.STORAGE_KV_REST_API_URL` and `process.env.STORAGE_KV_REST_API_TOKEN`.
 
-**Diagram:**
+3.  **Domain Keywords (`lib/domainKeywords.ts`):**
+    *   Create `lib/domainKeywords.ts`.
+    *   Define and export `domainKeywords`: an object mapping domains (parenting, tenancy, etc.) to arrays of keywords.
+
+4.  **Domain Detection (`app/api/judge/route.ts`):**
+    *   Import `domainKeywords`.
+    *   Remove existing inline keyword definitions.
+    *   Implement detection logic: Count keyword hits in user input; if ≥ 2 hits for a domain, assign that domain, else skip RAG.
+
+5.  **Snippet Retrieval (`lib/retrieveSnippets.ts`):**
+    *   Import `WHITELISTED_SOURCES` from `lib/approvedSources.ts`.
+    *   Import and use the configured Redis client.
+    *   Modify `retrieveSnippets(domain)`:
+        *   Filter `WHITELISTED_SOURCES` for the detected `domain`.
+        *   For each relevant URL: Check Redis cache (key=URL).
+        *   On cache miss: Use global `fetch`, use Regex to extract first `<p>` text, strip tags, truncate to 80 words, store `{ url, text }` in Redis (30-day TTL: `EX: 2592000`).
+        *   On cache hit: Parse stored JSON.
+        *   Add logging: `console.log(\`[RAG] domain=${domain} urls=${urls.length} hits=${snippets.length}\`);`
+        *   Return `Promise<Snippet[]>`, where `Snippet = { url: string; text: string }`.
+
+6.  **Prompt Integration (`app/api/judge/route.ts`):**
+    *   Before calling `callGenerativeAIWithRetry`:
+        *   Call domain detector.
+        *   If domain detected: Call `retrieveSnippets`.
+        *   If `snippets.length > 0`:
+            *   Format `<REFERENCES>` block: `[n] (URLn) Snippetn text...`
+            *   Prepend block and citation instruction (`- When you cite... DO NOT reveal the URL...`) to the prompt.
+            *   Pass `snippets` array to `callGenerativeAIWithRetry`.
+
+7.  **Citation Validation (`lib/validateJudge.ts` & `app/api/judge/route.ts`):**
+    *   Modify validation in `lib/validateJudge.ts` to receive `snippets`.
+    *   Extract all `[n]` from Gemini response.
+    *   Check `1 <= n <= snippets.length`. If invalid, throw `Error('Invalid citation number')`.
+    *   Ensure `callGenerativeAIWithRetry` catches this error and retries once, passing `snippets` to the validation step.
+
+8.  **Seeder Script (`scripts/seedSnippets.ts`):**
+    *   Create `scripts/seedSnippets.ts`.
+    *   Import `WHITELISTED_SOURCES` and Redis client.
+    *   Iterate *all* URLs in `WHITELISTED_SOURCES`.
+    *   Use the *exact same* fetch/parse/truncate/store logic as `retrieveSnippets` (consider extracting shared logic).
+
+9.  **GitHub Action (`.github/workflows/seed-snippets.yml`):**
+    *   Create file with `on: workflow_dispatch: {}`.
+    *   Setup Node.js, `pnpm install`.
+    *   Run seeder: `pnpm run seed:snippets`.
+    *   Ensure Redis env vars (`STORAGE_KV_REST_API_URL`, `STORAGE_KV_REST_API_TOKEN`) are available as secrets.
+
+10. **Frontend Rendering (`app/results/[id]/page.js`):**
+    *   Receive `snippets` array from API response.
+    *   If `snippets` present: Use Regex (`/\[(\d+)\]/g`) to find `[k]`. If `1 <= k <= snippets.length`, replace with `<a href={snippets[k-1].url} target="_blank" rel="noopener noreferrer">[k]</a>`.
+
+11. **Testing (`tests/judge.test.ts` & `tests/golden/`):**
+    *   Update mocks/fixtures to include `snippets: { url, text }[]` when RAG is active.
+    *   Add/update tests with `"expectCitation": true` for RAG scenarios, asserting `[n]` presence.
+    *   Ensure `unrelated_scenario.json` (`"expectCitation": false`) verifies no references/citations.
+
+12. **Icon Exports (`components/ui/Icons.js`):**
+    *   Add `export` before `ShareIcon` and `ArrowPathIcon` declarations.
+
+13. **`package.json` Script:**
+    *   Add `"seed:snippets": "ts-node scripts/seedSnippets.ts"` to `"scripts"`.
+
+14. **Documentation (`README.md`):**
+    *   Add note: Run `pnpm run seed:snippets` (manually via GH Action or locally) after deploy to warm cache.
+
+## Sequence Diagram
 
 ```mermaid
-graph TD
-    A[Start: User Request /api/judge] --> B{Detect Domain};
-    B -- Parenting/Tenancy/Workplace --> C[Retrieve Snippets];
-    B -- Default --> G[Construct Prompt w/o References];
-    C --> D{Cache Check (Upstash)};
-    D -- Cache Hit --> F[Use Cached Snippets];
-    D -- Cache Miss --> E[Fetch External Source -> Extract -> Cache];
-    E --> F;
-    F --> G[Construct Prompt w/ References];
-    G --> H[Call Gemini AI];
-    H --> I[Receive Response];
-    I --> J{Validate Response (Zod + Citations)};
-    J -- Validation OK --> K[Return Success (200)];
-    J -- Citation Error (1st time) --> H;
-    J -- Other Error / Citation Error (2nd time) --> L[Return Error (400/500)];
+sequenceDiagram
+    participant User
+    participant FE as Frontend (results/[id]/page.js)
+    participant API as API Endpoint (judge/route.ts)
+    participant Detector as Domain Detector (in API)
+    participant Retriever as Snippet Retriever (retrieveSnippets.ts)
+    participant Redis as Upstash Redis
+    participant Parser as HTML Parser (Regex/Fetch in Retriever)
+    participant Gemini as Gemini API (callGenerativeAIWithRetry in API)
+    participant Validator as Citation Validator (validateJudge.ts)
 
-    subgraph Snippet Retrieval
-        direction LR
-        C --> D;
-        D --> E;
-        D --> F;
-        E --> F;
+    User->>FE: Submits query
+    FE->>API: POST /api/judge with query
+    API->>Detector: Analyze query text
+    Detector-->>API: detectedDomain (or null)
+
+    alt Domain Detected
+        API->>Retriever: retrieveSnippets(detectedDomain)
+        Retriever->>Redis: Check cache for URLs in domain
+        alt Cache Miss
+            Retriever->>Parser: Fetch & Parse URL
+            Parser-->>Retriever: snippetText (80 words)
+            Retriever->>Redis: Store snippet (30d TTL)
+        end
+        Redis-->>Retriever: Cached/New Snippets
+        Retriever-->>API: snippets: Snippet[]
+        API->>API: Format <REFERENCES> block
+        API->>API: Prepend references & instructions to prompt
     end
 
-    subgraph Validation
-        direction LR
-        I --> J;
-        J -- OK --> K;
-        J -- Bad --> L;
-        J -- Retry --> H;
+    API->>Gemini: Call Gemini with final prompt & snippets
+    Gemini-->>API: Gemini Response (potentially with [n])
+
+    API->>Validator: Validate response (Zod + citations) using snippets
+    alt Validation Fails (Citation Error)
+        Validator-->>API: Error: Invalid Citation
+        API->>Gemini: Retry Gemini Call (1 time)
+        Gemini-->>API: Gemini Response
+        API->>Validator: Re-validate response
+        alt Validation Fails Again
+             Validator-->>API: Error
+             API-->>FE: Error Response
+        end
     end
+    Validator-->>API: Validated Response
+
+    API-->>FE: Success Response (with text & snippets if RAG used)
+    FE->>FE: Render response text
+    alt RAG Snippets Present
+        FE->>FE: Replace [k] with <a href="snippets[k-1].url">[k]</a>
+    end
+    FE-->>User: Display formatted results with clickable citations
+```
+
+## Environment Variables Required
+
+*   `STORAGE_KV_REST_API_URL`: URL for the Upstash Redis instance.
+*   `STORAGE_KV_REST_API_TOKEN`: Token for the Upstash Redis instance.
+*   `GEMINI_API_KEY`: Primary Gemini API Key.
+*   `GEMINI_BACKUP_KEY`: Backup Gemini API Key.
+
+## Notes
+
+*   The `lib/approvedSources.ts` file needs to be populated with the actual list of `{ domain: string, url: string }` objects.
+*   Shared logic between `retrieveSnippets.ts` and `seedSnippets.ts` should ideally be extracted into a common utility function.

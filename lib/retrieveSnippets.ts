@@ -1,145 +1,140 @@
 import { Redis } from '@upstash/redis';
+import { WHITELISTED_SOURCES } from './approvedSources';
+import { ApprovedDomain } from './domainKeywords';
+// Import shared HTML processing functions
+import { stripHtml, extractFirstParagraph, truncateWords } from './htmlUtils';
 
-// Define the sources for different domains
-const SOURCES: Record<string, string[]> = {
-  parenting: [
-    "https://www.nhs.uk/conditions/baby/support-and-services/services-and-support-for-parents/", // Placeholder - replace with actual relevant URLs if known
-    "https://www.citizensadvice.org.uk/family/children-and-young-people/parental-rights-and-responsibilities/" // Placeholder
-  ],
-  tenancy: [
-    "https://www.citizensadvice.org.uk/housing/repairs-in-rented-housing/repairs-what-are-the-landlords-responsibilities/",
-    "https://england.shelter.org.uk/housing_advice/repairs/landlord_and_tenant_responsibilities_for_repairs"
-  ],
-  workplace: [
-    "https://www.acas.org.uk/disciplinary-procedure-step-by-step",
-    "https://www.acas.org.uk/grievance-procedure-step-by-step"
-  ]
+// --- Define and Export Snippet Type ---
+export type Snippet = {
+    url: string;
+    text: string;
 };
 
 // Initialize Redis client from environment variables
-// Assumes STORAGE_REDIS_URL, STORAGE_KV_REST_API_TOKEN, STORAGE_KV_REST_API_URL are set
 let redis: Redis | null = null;
-try {
-    redis = Redis.fromEnv();
-    console.log("Redis client initialized successfully for snippet retrieval.");
-} catch (error) {
-    console.error("Failed to initialize Redis client from environment variables:", error);
-    // Depending on requirements, you might want to throw here or handle gracefully
-}
+const redisUrl = process.env.STORAGE_KV_REST_API_URL;
+const redisToken = process.env.STORAGE_KV_REST_API_TOKEN;
 
-
-/**
- * Strips HTML tags from a string.
- * @param html The HTML string.
- * @returns The string with HTML tags removed.
- */
-function stripHtml(html: string): string {
-    if (!html) return '';
-    return html.replace(/<[^>]*>/g, '');
-}
-
-/**
- * Extracts the content of the first <p> tag from an HTML string.
- * @param html The HTML string.
- * @returns The content of the first <p> tag, or null if not found.
- */
-function extractFirstParagraph(html: string): string | null {
-    if (!html) return null;
-    // Changed regex: Replaced '.' with '[\s\S]' and removed 's' flag for compatibility
-    const match = html.match(/<p>([\s\S]*?)<\/p>/i); // Case-insensitive, [\s\S] matches any char including newline
-    return match ? match[1] : null; // Return the captured group
-}
-
-/**
- * Truncates text to a specified word count.
- * @param text The text to truncate.
- * @param maxWords The maximum number of words.
- * @returns The truncated text.
- */
-function truncateWords(text: string, maxWords: number): string {
-    if (!text) return '';
-    const words = text.trim().split(/\s+/);
-    if (words.length <= maxWords) {
-        return text.trim();
+if (redisUrl && redisToken) {
+    try {
+        redis = new Redis({
+            url: redisUrl,
+            token: redisToken,
+        });
+        console.log("Redis client initialized successfully for snippet retrieval using STORAGE_KV variables.");
+    } catch (error) {
+        console.error("Failed to initialize Redis client with provided STORAGE_KV variables:", error);
     }
-    return words.slice(0, maxWords).join(' ') + '...';
+} else {
+    console.error("Missing required Redis environment variables: STORAGE_KV_REST_API_URL or STORAGE_KV_REST_API_TOKEN");
 }
-
 
 /**
  * Retrieves relevant text snippets for a given domain, using caching.
- * @param domain The domain (e.g., 'parenting', 'tenancy', 'workplace').
- * @returns A promise that resolves to an array of up to two snippets (max 80 words each).
+ * Fetches content from approved URLs associated with the domain.
+ * @param domain The detected domain (must be an ApprovedDomain).
+ * @returns A promise that resolves to an array of Snippet objects.
  */
-export async function retrieveSnippets(domain: string): Promise<string[]> {
+export async function retrieveSnippets(domain: ApprovedDomain): Promise<Snippet[]> {
     if (!redis) {
         console.error("retrieveSnippets: Redis client not available.");
         return [];
     }
-    if (!domain || !SOURCES[domain]) {
-        console.warn(`retrieveSnippets: Invalid or unknown domain requested: ${domain}`);
-        return [];
-    }
 
-    const urls = SOURCES[domain].slice(0, 2); // Get max 2 URLs
-    const snippets: string[] = [];
-    const cacheTTL = 86400; // 24 hours in seconds
+    // Filter the sources for the given domain
+    const relevantSources = WHITELISTED_SOURCES.filter(source => source.domain === domain);
+    const retrievedSnippets: Snippet[] = [];
+    const cacheTTL = 60 * 60 * 24 * 30; // 30 days in seconds
+    const maxWordsPerSnippet = 80;
 
-    for (const url of urls) {
-        const cacheKey = `snippet:${domain}:${url}`;
-        let snippet: string | null = null;
+    console.log(`[RAG] Starting snippet retrieval for domain: ${domain}. Found ${relevantSources.length} potential URLs.`);
+
+    for (const source of relevantSources) {
+        const url = source.url;
+        const cacheKey = `snippet:${url}`;
+        let snippetFromCache: Snippet | null = null; // Renamed variable for clarity
 
         try {
-            // 1. Check cache
-            snippet = await redis.get<string>(cacheKey);
-            if (snippet) {
-                console.log(`retrieveSnippets: Cache HIT for ${cacheKey}`);
-                snippets.push(snippet);
-                continue; // Move to next URL if cache hit
+            // 1. Check cache - Use generic 'unknown' type first
+            const cachedData: unknown = await redis.get(cacheKey);
+
+            if (cachedData !== null && cachedData !== undefined) {
+                let potentialSnippet: any = null;
+
+                // Check if it's a string that needs parsing, or potentially already an object
+                if (typeof cachedData === 'string') {
+                    try {
+                        potentialSnippet = JSON.parse(cachedData);
+                    } catch (parseError) {
+                        console.warn(`[RAG] Failed to parse cached string data for ${url}. Will refetch. Error:`, parseError);
+                        // Keep potentialSnippet as null
+                    }
+                } else if (typeof cachedData === 'object') {
+                    // It might already be an object (though get<string> was used before, let's be safe)
+                    potentialSnippet = cachedData;
+                } else {
+                     console.warn(`[RAG] Unexpected data type found in cache for ${url}: ${typeof cachedData}. Will refetch.`);
+                }
+
+                // Validate the structure of the potential snippet (whether parsed or direct object)
+                if (potentialSnippet && typeof potentialSnippet.url === 'string' && typeof potentialSnippet.text === 'string') {
+                    console.log(`[RAG] Cache HIT for ${url}`);
+                    snippetFromCache = potentialSnippet as Snippet; // Type assertion after validation
+                    retrievedSnippets.push(snippetFromCache);
+                    continue; // Move to the next source URL
+                } else if (potentialSnippet) {
+                    // Parsed/Object existed but didn't have the right structure
+                    console.warn(`[RAG] Invalid object structure found in cache for ${url}. Will refetch.`);
+                }
+                // If parsing failed or structure was invalid, snippetFromCache remains null, and we proceed to fetch
             }
 
-            console.log(`retrieveSnippets: Cache MISS for ${cacheKey}. Fetching ${url}...`);
+            // If cache miss or invalid cache data, proceed to fetch
+            // (snippetFromCache will be null here)
+            console.log(`[RAG] Cache MISS for ${url}. Fetching...`);
 
             // 2. Fetch external URL
             const response = await fetch(url, {
-                headers: { 'User-Agent': 'AmIBeingUnreasonable-Bot/1.0' } // Be polite
+                headers: { 'User-Agent': 'AmIBeingUnreasonable-Bot/1.0' },
+                signal: AbortSignal.timeout(10000) // 10-second timeout
             });
 
             if (!response.ok) {
-                console.error(`retrieveSnippets: Failed to fetch ${url}. Status: ${response.status}`);
-                // Optionally cache a failure marker for a short period? For now, just skip.
+                console.error(`[RAG] Failed to fetch ${url}. Status: ${response.status} ${response.statusText}`);
                 continue;
             }
 
             const html = await response.text();
 
-            // 3. Extract content
+            // 3. Extract content using imported functions
             const firstParagraphHtml = extractFirstParagraph(html);
             if (!firstParagraphHtml) {
-                console.warn(`retrieveSnippets: Could not find <p> tag content in ${url}`);
-                // Fallback: strip all tags and take first ~500 chars if no <p> found?
-                // For now, skip if no <p> found as per plan refinement.
+                console.warn(`[RAG] Could not find first <p> tag content in ${url}`);
                 continue;
             }
 
-            const textContent = stripHtml(firstParagraphHtml).trim().replace(/\s+/g, ' '); // Clean whitespace
-            snippet = truncateWords(textContent, 80);
+            const textContent = stripHtml(firstParagraphHtml);
+            const snippetText = truncateWords(textContent, maxWordsPerSnippet);
 
-            if (snippet) {
-                 console.log(`retrieveSnippets: Extracted snippet from ${url}. Caching...`);
-                // 4. Cache the result
-                await redis.set(cacheKey, snippet, { ex: cacheTTL });
-                snippets.push(snippet);
+            if (snippetText && snippetText !== '...') {
+                const newSnippet: Snippet = { url: url, text: snippetText };
+                console.log(`[RAG] Extracted snippet from ${url}. Caching...`);
+
+                // 4. Cache the result (as a JSON string)
+                await redis.set(cacheKey, JSON.stringify(newSnippet), { ex: cacheTTL });
+                retrievedSnippets.push(newSnippet);
             } else {
-                 console.warn(`retrieveSnippets: Extracted empty snippet from ${url} after processing.`);
+                console.warn(`[RAG] Extracted empty or minimal snippet from ${url} after processing.`);
             }
 
         } catch (error: any) {
-            console.error(`retrieveSnippets: Error processing URL ${url}:`, error.message || error);
-            // Don't add a snippet if an error occurred during fetch/processing
+            console.error(`[RAG] Error processing URL ${url}:`, error.message || error);
+             if (error.name === 'TimeoutError') {
+                 console.error(`[RAG] Fetch timed out for ${url}`);
+             }
         }
     }
 
-    console.log(`retrieveSnippets: Returning ${snippets.length} snippets for domain ${domain}.`);
-    return snippets;
+    console.log(`[RAG] Finished snippet retrieval for domain=${domain}. URLs checked=${relevantSources.length}, Snippets returned=${retrievedSnippets.length}`);
+    return retrievedSnippets;
 }

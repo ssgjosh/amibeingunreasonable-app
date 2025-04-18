@@ -1,9 +1,8 @@
 import { useState, useEffect, useCallback, RefObject } from 'react';
-import type { JudgeResult } from '@/lib/types'; // Assuming JudgeResult is the core structure
+import type { Snippet } from '@/lib/retrieveSnippets'; // Import Snippet type
 
 // Define a type for the data structure as saved/fetched by getResults API
 // This might differ slightly from JudgeResult if saveResults modifies it
-// For now, assume it includes the core fields we need.
 interface SavedResultData {
     context?: string;
     query?: string;
@@ -18,6 +17,8 @@ interface SavedResultData {
         rationale: string;
         key_points: [string, string, string];
     }>;
+    // Add the optional snippets field
+    snippets?: Snippet[];
 }
 
 type PersonaName = "Therapist" | "Analyst" | "Coach";
@@ -30,31 +31,29 @@ type PersonaName = "Therapist" | "Analyst" | "Coach";
  * @returns {Object} An object containing state values and handler functions.
  */
 export const useSharedResults = (id: string | string[] | undefined, detailViewRef: RefObject<HTMLElement>) => {
+    // Use the updated SavedResultData type for state
     const [resultsData, setResultsData] = useState<SavedResultData | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    // *** CHANGE: Initialize selectedPersona state directly to "Analyst" ***
-    // We will still set it to null initially and update after fetch to ensure data is ready.
-    const [selectedPersona, setSelectedPersona] = useState<PersonaName | null>(null); // Use PersonaName type
+    const [selectedPersona, setSelectedPersona] = useState<PersonaName | null>(null);
     const [isSwitchingPersona, setIsSwitchingPersona] = useState(false);
 
     // Effect to fetch results when the ID changes
     useEffect(() => {
-        // Ensure id is a single string if it's an array (can happen with catch-all routes)
         const resultId = Array.isArray(id) ? id[0] : id;
 
         if (!resultId) {
             setError("No result ID provided in the URL.");
             setLoading(false);
-            setResultsData(null); // Ensure data is cleared if ID is missing
+            setResultsData(null);
             return;
         }
 
         const fetchResults = async () => {
             setLoading(true);
             setError(null);
-            setResultsData(null); // Clear previous results before fetching new ones
-            setSelectedPersona(null); // Reset selected persona
+            setResultsData(null);
+            setSelectedPersona(null);
             console.log(`Fetching results for ID: ${resultId}`);
 
             try {
@@ -74,28 +73,30 @@ export const useSharedResults = (id: string | string[] | undefined, detailViewRe
                     }
                     throw new Error(`Failed to fetch results (${res.status}): ${detail}`);
                 }
+                // Type assertion ensures the fetched data conforms to our updated interface
                 const data: SavedResultData = await res.json();
 
                 if (typeof data !== 'object' || data === null) {
                     throw new Error("Received invalid data format from API.");
                 }
 
-                console.log("Results data received:", data);
+                console.log("Results data received:", data); // Log the received data including snippets if present
                 setResultsData(data);
 
-                // *** CHANGE: Always default to "Analyst" if responses exist ***
+                // Default to "Analyst" if personas exist
+                // Note: The API response structure uses 'personas', but SavedResultData uses 'responses'
                 if (Array.isArray(data.responses) && data.responses.length > 0) {
                     console.log(`Setting default persona to: Analyst`);
                     setSelectedPersona("Analyst");
                 } else {
-                    console.log("No responses found, cannot set a default persona.");
-                    setSelectedPersona(null); // No responses to select from
+                    console.log("No responses/personas found, cannot set a default persona.");
+                    setSelectedPersona(null);
                 }
 
             } catch (err) {
                 console.error("Error fetching shared results:", err);
                 setError(err instanceof Error ? err.message : "An unknown error occurred while fetching results.");
-                setResultsData(null); // Clear data on error
+                setResultsData(null);
             } finally {
                 setLoading(false);
                 console.log("Finished fetching results.");
@@ -103,35 +104,35 @@ export const useSharedResults = (id: string | string[] | undefined, detailViewRe
         };
 
         fetchResults();
-    }, [id]); // Re-run effect if the ID changes
+    }, [id]);
 
     /**
      * Handles selecting a persona in the results view, including animation logic.
      */
-    const handleSelectPersona = useCallback((personaName: PersonaName) => { // Use PersonaName type
+    const handleSelectPersona = useCallback((personaName: PersonaName) => {
         if (personaName === selectedPersona || isSwitchingPersona) return;
         console.log(`Switching persona to: ${personaName}`);
         setIsSwitchingPersona(true);
-        if (detailViewRef?.current) { // Check if ref exists
+        if (detailViewRef?.current) {
             detailViewRef.current.classList.remove('animate-fadeIn');
-            void detailViewRef.current.offsetWidth; // Trigger reflow
+            void detailViewRef.current.offsetWidth;
         }
         setTimeout(() => {
             setSelectedPersona(personaName);
             setTimeout(() => {
                 setIsSwitchingPersona(false);
                 requestAnimationFrame(() => {
-                    if (detailViewRef?.current) { // Check if ref exists
+                    if (detailViewRef?.current) {
                         detailViewRef.current.classList.add('animate-fadeIn');
                     }
                 });
-            }, 50); // Short delay for state update
-        }, 150); // Delay for fade out animation
-    }, [selectedPersona, isSwitchingPersona, detailViewRef]); // Added dependencies
+            }, 50);
+        }, 150);
+    }, [selectedPersona, isSwitchingPersona, detailViewRef]);
 
     return {
         // State
-        resultsData,
+        resultsData, // This now includes the optional 'snippets' field
         loading,
         error,
         selectedPersona,
@@ -139,6 +140,5 @@ export const useSharedResults = (id: string | string[] | undefined, detailViewRe
 
         // Handlers
         handleSelectPersona,
-        // No reset function needed here as state resets naturally when ID changes
     };
 };

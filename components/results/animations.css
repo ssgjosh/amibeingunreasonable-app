@@ -1,0 +1,98 @@
+/* Animations for the 2025 Layout */
+
+/* Fade In Animation */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.2s ease-in-out;
+}
+
+/* Toast Animation */
+@keyframes toastEnter {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 20px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+.toast-enter {
+  animation: toastEnter 0.2s ease-out forwards;
+}
+
+/* Bottom Sheet Animation */
+@keyframes bottomSheetEnter {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.bottom-sheet-enter {
+  animation: bottomSheetEnter 0.2s ease-out forwards;
+}
+
+/* Backdrop Animation */
+@keyframes backdropEnter {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.backdrop-enter {
+  animation: backdropEnter 0.2s ease-out forwards;
+}
+
+/* Citation Hover Effect */
+.citation-hover {
+  transition: color 0.15s ease-in-out;
+}
+
+.citation-hover:hover {
+  color: var(--accent-color, #0ea5e9);
+  text-decoration: underline;
+}
+
+/* Snippet Highlight Animation */
+@keyframes highlightSnippet {
+  0% {
+    background-color: rgba(14, 165, 233, 0.1);
+  }
+  50% {
+    background-color: rgba(14, 165, 233, 0.3);
+  }
+  100% {
+    background-color: rgba(14, 165, 233, 0.1);
+  }
+}
+
+.highlight-snippet {
+  animation: highlightSnippet 2s ease-in-out;
+}
+
+/* Reduced Motion Preferences */
+@media (prefers-reduced-motion: reduce) {
+  .animate-fadeIn,
+  .toast-enter,
+  .bottom-sheet-enter,
+  .backdrop-enter,
+  .highlight-snippet {
+    animation: none !important;
+    transition: none !important;
+  }
+}

@@ -3,7 +3,7 @@
 <html lang="en">
 
 <head>
-    <title>Code coverage report for lib/validateJudge.ts</title>
+    <title>Code coverage report for lib/approvedSources.ts</title>
     <meta charset="utf-8" />
     <link rel="stylesheet" href="../prettify.css" />
     <link rel="stylesheet" href="../base.css" />
@@ -19,34 +19,34 @@
 <body>
 <div class='wrapper'>
     <div class='pad1'>
-        <h1><a href="../index.html">All files</a> / <a href="index.html">lib</a> validateJudge.ts</h1>
+        <h1><a href="../index.html">All files</a> / <a href="index.html">lib</a> approvedSources.ts</h1>
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/7</span>
-            </div>
-        
-            
-            <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
-                <span class="quiet">Branches</span>
-                <span class='fraction'>0/3</span>
-            </div>
-        
-            
-            <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
-                <span class="quiet">Functions</span>
                 <span class='fraction'>0/2</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Branches</span>
+                <span class='fraction'>0/0</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Functions</span>
+                <span class='fraction'>0/0</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/5</span>
+                <span class='fraction'>0/1</span>
             </div>
         
             
@@ -103,13 +103,10 @@
 <a name='L38'></a><a href='#L38'>38</a>
 <a name='L39'></a><a href='#L39'>39</a>
 <a name='L40'></a><a href='#L40'>40</a>
-<a name='L41'></a><a href='#L41'>41</a></td><td class="line-coverage quiet"><span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L41'></a><a href='#L41'>41</a>
+<a name='L42'></a><a href='#L42'>42</a>
+<a name='L43'></a><a href='#L43'>43</a>
+<a name='L44'></a><a href='#L44'>44</a></td><td class="line-coverage quiet"><span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -123,7 +120,6 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -135,62 +131,75 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import { z } from <span class="cstat-no" title="statement not covered" >"zod";</span>
-&nbsp;
-// Define the schema for a single persona's result
-const PersonaSchema = <span class="cstat-no" title="statement not covered" >z.object({</span>
-  name: z.enum(["Therapist", "Analyst", "Coach"]), // Must be one of these exact strings
-  verdict: z.enum(["Yes", "No", "Partially"]), // Must be one of these exact strings
-  rationale: z.string()
-    .min(1, "Rationale cannot be empty.") // Ensure rationale is not empty
-    .max(120 * 8, "Rationale exceeds maximum length (approx. 120 words)."), // Approx 120 words, assuming avg 8 chars/word
-  key_points: z.tuple(
-    [
-      z.string().min(1, "Key point 1 cannot be empty."), // Ensure key points are not empty
-      z.string().min(1, "Key point 2 cannot be empty."),
-      z.string().min(1, "Key point 3 cannot be empty.")
-    ],
-    { invalid_type_error: "Key points must be an array of exactly three strings." } // Custom error for wrong type/length
-  )
-});
-&nbsp;
-// Define the main schema for the entire JudgeResult object
-export const <span class="cstat-no" title="statement not covered" >JudgeSchema = <span class="cstat-no" title="statement not covered" >z</span>.object({</span>
-  paraphrase: z.string()
-    .min(1, "Paraphrase cannot be empty.") // Ensure paraphrase is not empty
-    .max(30 * 8, "Paraphrase exceeds maximum length (approx. 30 words)."), // Approx 30 words
-  summary: z.string()
-    .min(1, "Summary cannot be empty.") // Ensure summary is not empty
-    .max(120 * 8, "Summary exceeds maximum length (approx. 120 words)."), // Approx 120 words
-  personas: z.array(PersonaSchema)
-    .length(3, "Must contain results for exactly three personas (Therapist, Analyst, Coach).") // Ensure exactly 3 personas
-    .refine(
-<span class="fstat-no" title="function not covered" >      (p</span>ersonas) =&gt; {
-        // Custom refinement to check the order and names
-        const names = <span class="cstat-no" title="statement not covered" >personas.map(<span class="fstat-no" title="function not covered" >p =&gt; <span class="cstat-no" title="statement not covered" >p</span>.name)</span>;</span>
-<span class="cstat-no" title="statement not covered" >        return names[0] === "Therapist" &amp;&amp; names[1] === "Analyst" &amp;&amp; names[2] === "Coach";</span>
-      },
-      { message: "Personas must be in the order: Therapist, Analyst, Coach." }
-    )
-});
-&nbsp;
-// Optional: Export the inferred TypeScript type if needed elsewhere
-export type JudgeResultValidated = z.infer&lt;typeof JudgeSchema&gt;;</pre></td></tr></table></pre>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">export const <span class="cstat-no" title="statement not covered" >WHITELISTED_SOURCES = <span class="cstat-no" title="statement not covered" >{</span></span>
+  parenting: [
+    "https://www.nhs.uk/conditions/baby/caring-for-a-newborn/",
+    "https://www.nhs.uk/conditions/pregnancy-and-baby/behaviour-safety/",
+    "https://www.nspcc.org.uk/keeping-children-safe/support-for-parents/positive-parenting/",
+    "https://childlawadvice.org.uk/information-pages/parental-responsibility/",
+    "https://www.gov.uk/employee-rights-when-on-leave"
+  ],
+  tenancy: [
+    "https://england.shelter.org.uk/housing_advice/repairs/repairs_in_your_rented_home",
+    "https://www.gov.uk/renting-out-a-property",
+    "https://www.citizensadvice.org.uk/housing/renting-privately/tenancy-deposits/",
+    "https://www.gov.uk/eviction-notice",
+    "https://www.moneyhelper.org.uk/en/homes/buying-a-home/struggling-with-rent-payments"
+  ],
+  workplace: [
+    "https://www.acas.org.uk/disciplinary-procedure-step-by-step",
+    "https://www.acas.org.uk/grievance-procedure-step-by-step",
+    "https://www.gov.uk/handling-employee-grievance",
+    "https://www.hse.gov.uk/stress/standards/",
+    "https://ico.org.uk/for-organisations/uk-gdpr-guidance-and-resources/employment/"
+  ],
+  consumer: [
+    "https://www.citizensadvice.org.uk/consumer/",
+    "https://www.moneyhelper.org.uk/en/everyday-money/budgeting",
+    "https://www.gov.uk/government/collections/unfair-contract-terms-cma-guidance",
+    "https://www.stepchange.org/how-we-help/debt-management-plan.aspx",
+    "https://www.nationaldebtline.org/fact-sheet-library/priority-debts/"
+  ],
+  health: [
+    "https://www.nhs.uk/mental-health/self-help/",
+    "https://www.mind.org.uk/information-support/types-of-mental-health-problems/",
+    "https://www.nhs.uk/conditions/stress-anxiety-depression/",
+    "https://www.cqc.org.uk/what-we-do/how-we-do-our-work/your-rights",
+    "https://www.samaritans.org/how-we-can-help/contact-samaritan/"
+  ],
+  equality: [
+    "https://www.equalityhumanrights.com/en/advice-and-guidance/your-rights-under-equality-act-2010",
+    "https://www.gov.uk/rights-disabled-person",
+    "https://www.acas.org.uk/discrimination-and-the-law",
+    "https://www.gov.uk/reasonable-adjustments-for-disabled-workers",
+    "https://www.scope.org.uk/advice-and-support/discrimination-at-work/"
+  ]
+} as const;</pre></td></tr></table></pre>
 
                 <div class='push'></div><!-- for sticky footer -->
             </div><!-- /wrapper -->
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-04-18T05:31:29.999Z
+                at 2025-04-18T05:31:29.943Z
             </div>
         <script src="../prettify.js"></script>
         <script>
