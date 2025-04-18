@@ -129,7 +129,7 @@ export async function POST(request) {
     // Removed: const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-thinking-exp-01-21" });
 
     // Define model parameters (used in getOpenRouterCompletion calls)
-    const modelName = "openai/o4-mini-high"; // Target model
+    const modelName = "openai/gpt-4o"; // Target model
     const defaultTemperature = 0.6;
     // REMOVED: const paraphraseMaxTokens = 80;
     // REMOVED: const personaMaxTokens = 800;

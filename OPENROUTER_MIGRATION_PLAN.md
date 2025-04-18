@@ -4,7 +4,7 @@ This document outlines the steps to switch the application's Large Language Mode
 
 **Objective:**
 
-Replace the current Gemini integration with OpenRouter, using the `openai/o4-mini-high` model and a user-provided API key.
+Replace the current Gemini integration with OpenRouter, using the `openai/gpt-4o` model and a user-provided API key.
 
 **Key Files:**
 
@@ -19,7 +19,7 @@ Replace the current Gemini integration with OpenRouter, using the `openai/o4-min
     *   Implement a new client using the `openai` library.
     *   Configure it for OpenRouter's base URL: `https://openrouter.ai/api/v1`.
     *   Read the API key from the `OPENROUTER_API_KEY` environment variable.
-    *   Create a function (e.g., `getOpenRouterCompletion`) to handle API calls, specifying the `openai/o4-mini-high` model.
+    *   Create a function (e.g., `getOpenRouterCompletion`) to handle API calls, specifying the `openai/gpt-4o` model.
 
 2.  **Refactor `app/api/judge/route.ts`:**
     *   Import the new `getOpenRouterCompletion` function.
@@ -43,7 +43,7 @@ graph TD
         H -- Configures OpenAI SDK --> I{getOpenRouterCompletion};
         I -- Returns OpenAI-compatible Completion --> J[app/api/judge/route.ts (Refactored)];
         J -- Calls createChatCompletion --> K(OpenRouter API);
-        K -- Uses openai/o4-mini-high --> L[Underlying LLM];
+        K -- Uses openai/gpt-4o --> L[Underlying LLM];
     end
 ```
 

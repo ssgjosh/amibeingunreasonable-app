@@ -62,7 +62,7 @@ export async function POST(request) {
 
     // Removed: const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-thinking-exp-01-21" });
     // Model config parameters (will be passed to the helper)
-    const modelName = "openai/o4-mini-high"; // Use the same model as judge route
+    const modelName = "openai/gpt-4o"; // Use the same model as judge route
     const temperature = 0.7;
     // const maxTokens = 500; // REMOVED hardcoded limit
 
