@@ -14,14 +14,26 @@ const FollowUpQuestionsSection = ({
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        // Pass the current answers to proceedToAnalysis
-        proceedToAnalysis(followUpAnswers);
+        // Format the answers object into an array of {question, answer}
+        const formattedAnswers = Object.entries(followUpAnswers)
+          .map(([index, answer]) => {
+            const questionIndex = parseInt(index, 10);
+            // Include only if answer is provided and question exists
+            if (!isNaN(questionIndex) && followUpQuestions[questionIndex] && answer && answer.trim()) {
+              return { question: followUpQuestions[questionIndex], answer: answer.trim() };
+            }
+            return null;
+          })
+          .filter(item => item !== null); // Remove null entries (e.g., unanswered questions)
+
+        // Pass the formatted array to proceedToAnalysis
+        proceedToAnalysis(formattedAnswers);
     };
 
     // Handler for the skip button
     const handleSkip = () => {
-        // Proceed directly to analysis with empty answers
-        proceedToAnalysis({});
+        // Proceed directly to analysis with an empty array
+        proceedToAnalysis([]);
     };
 
     // Show loading spinner if questions are still being generated

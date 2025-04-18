@@ -14,10 +14,11 @@ import React, { useState, useEffect, memo } from 'react';
  * @param {Array} props.snippets - Array of source snippets (if any)
  * @param {Array} props.followUpResponses - Array of follow-up Q&A pairs
  */
-const ReferenceDrawer = memo(function ReferenceDrawer({ 
-  context, 
-  snippets = [], 
-  followUpResponses = []
+const ReferenceDrawer = memo(function ReferenceDrawer({
+  context,
+  snippets = [],
+  initialClarifications = [], // Add new prop for initial clarifying Q&A
+  followUpResponses = [] // This prop now holds the interactive persona chat history
 }) {
   const [openAccordion, setOpenAccordion] = useState(null); // All sections closed by default
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -92,11 +93,27 @@ const ReferenceDrawer = memo(function ReferenceDrawer({
           <span className={`transform transition-transform duration-200 ${openAccordion === 'context' ? 'rotate-180' : ''}`}>▼</span>
         </button>
         {openAccordion === 'context' && (
-          <div className="p-4 animate-fadeIn">
+          <div className="p-4 animate-fadeIn space-y-3">
+            {/* Display Original Context */}
             {context ? (
               <p className="text-sm whitespace-pre-wrap">{context}</p>
             ) : (
-              <p className="text-sm text-secondary-foreground italic">No context available.</p>
+              <p className="text-sm text-secondary-foreground italic">No original context available.</p>
+            )}
+
+            {/* Display Initial Clarifying Q&A if available */}
+            {initialClarifications && initialClarifications.length > 0 && (
+              <div className="pt-3 mt-3 border-t border-border/40">
+                <h4 className="text-sm font-semibold mb-2 text-secondary-foreground">Clarifying Questions:</h4>
+                <div className="space-y-3">
+                  {initialClarifications.map((item, index) => (
+                    <div key={`clarification-${index}`}>
+                      <p className="font-medium text-sm">Q: {item.question}</p>
+                      <p className="text-sm mt-1 ml-2">{item.answer || <span className="italic text-secondary-foreground/70">No answer provided</span>}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
             )}
           </div>
         )}
@@ -113,10 +130,10 @@ const ReferenceDrawer = memo(function ReferenceDrawer({
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
             </svg>
-            Follow-up Q&A History
+            Interactive Chat History {/* Rename section title */}
             {followUpResponses && followUpResponses.length > 0 && (
               <span className="ml-2 px-2 py-0.5 text-xs rounded-full bg-primary/20 text-primary">
-                {followUpResponses.length}
+                {Math.ceil(followUpResponses.length / 2)} {/* Count pairs */}
               </span>
             )}
           </h3>
@@ -137,7 +154,7 @@ const ReferenceDrawer = memo(function ReferenceDrawer({
                 </div>
               ))
             ) : (
-              <p className="text-sm text-secondary-foreground italic">No follow-up questions yet.</p>
+              <p className="text-sm text-secondary-foreground italic">No interactive chat history yet.</p>
             )}
           </div>
         )}
@@ -244,6 +261,7 @@ const ReferenceDrawer = memo(function ReferenceDrawer({
   return (
     prevProps.context === nextProps.context &&
     JSON.stringify(prevProps.snippets) === JSON.stringify(nextProps.snippets) &&
+    JSON.stringify(prevProps.initialClarifications) === JSON.stringify(nextProps.initialClarifications) && // Add comparison for new prop
     JSON.stringify(prevProps.followUpResponses) === JSON.stringify(nextProps.followUpResponses)
   );
 });

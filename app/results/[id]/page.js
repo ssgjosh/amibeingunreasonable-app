@@ -327,10 +327,11 @@ export default function SharedResultPage() {
           {/* Right Panel: Reference Drawer (40%) - Memoized to prevent re-rendering */}
           <div className="lg:col-span-2">
             {/* Using a stable reference to prevent re-renders */}
-            <ReferenceDrawer 
+            <ReferenceDrawer
               context={resultsData.context}
               snippets={resultsData.snippets || []}
-              followUpResponses={followUpHistory}
+              initialClarifications={resultsData.followUpResponses || []} // Pass initial clarifying Q&A
+              followUpResponses={followUpHistory} // Pass interactive chat history
             />
           </div>
         </div>
