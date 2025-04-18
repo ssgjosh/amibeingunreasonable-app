@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test Streaming API</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    .response {
+      white-space: pre-wrap;
+      border: 1px solid #ccc;
+      padding: 10px;
+      min-height: 200px;
+      margin-top: 20px;
+    }
+    button {
+      padding: 10px 15px;
+      background-color: #0070f3;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      margin-right: 10px;
+    }
+    h2 {
+      margin-top: 30px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Test Streaming API</h1>
+  
+  <h2>Test with Messages Format</h2>
+  <button id="testMessagesBtn">Test Messages Format</button>
+  <div id="messagesResponse" class="response"></div>
+
+  <h2>Test with Context/Query Format</h2>
+  <button id="testContextBtn">Test Context/Query Format</button>
+  <div id="contextResponse" class="response"></div>
+
+  <script>
+    // Test with Messages Format
+    document.getElementById('testMessagesBtn').addEventListener('click', async () => {
+      const responseDiv = document.getElementById('messagesResponse');
+      responseDiv.textContent = 'Loading...';
+
+      try {
+        const response = await fetch('/api/getResponses', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            messages: [
+              { role: 'system', content: 'You are a helpful assistant.' },
+              { role: 'user', content: 'Tell me a short story about a cat and a dog becoming friends.' }
+            ]
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        // Handle streaming response
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let result = '';
+
+        responseDiv.textContent = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          
+          if (done) {
+            break;
+          }
+          
+          const text = decoder.decode(value);
+          result += text;
+          responseDiv.textContent = result;
+        }
+      } catch (error) {
+        responseDiv.textContent = `Error: ${error.message}`;
+        console.error('Error:', error);
+      }
+    });
+
+    // Test with Context/Query Format
+    document.getElementById('testContextBtn').addEventListener('click', async () => {
+      const responseDiv = document.getElementById('contextResponse');
+      responseDiv.textContent = 'Loading...';
+
+      try {
+        const response = await fetch('/api/getResponses', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            context: "My neighbor's dog barks all night long, and I can't sleep. I've tried talking to my neighbor about it, but they don't seem to care. I'm thinking about calling animal control.",
+            query: "Am I being unreasonable to consider calling animal control?"
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        // Handle streaming response
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let result = '';
+
+        responseDiv.textContent = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          
+          if (done) {
+            break;
+          }
+          
+          const text = decoder.decode(value);
+          result += text;
+          responseDiv.textContent = result;
+        }
+      } catch (error) {
+        responseDiv.textContent = `Error: ${error.message}`;
+        console.error('Error:', error);
+      }
+    });
+  </script>
+</body>
+</html>
