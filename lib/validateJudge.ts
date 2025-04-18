@@ -3,7 +3,7 @@ import { z } from "zod";
 // Define the schema for a single persona's result
 const PersonaSchema = z.object({
   name: z.enum(["Therapist", "Analyst", "Coach"]),
-  verdict: z.enum(["Yes", "No", "Partially"]),
+  verdict: z.enum(["Yes", "No", "Partially"]).optional(), // Make verdict optional (Analyst won't have it)
   rationale: z.string()
     .min(1, "Rationale cannot be empty.")
     .max(120 * 8, "Rationale exceeds maximum length (approx. 120 words)."), // Approx 120 words

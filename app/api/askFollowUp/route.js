@@ -1,5 +1,8 @@
 import { getOpenRouterCompletion } from '@/lib/openRouterClient'; // Changed import
 import { NextResponse } from 'next/server';
+import { therapistPersona } from '@/app/prompts/therapist'; // Import detailed prompts
+import { analystPersona } from '@/app/prompts/analyst';
+import { coachPersona } from '@/app/prompts/coach';
 
 // --- ROBUST Helper function to clean API response text (Copied from getResponses) ---
 // (Keep this function as it's still used for the follow-up response)
@@ -29,18 +32,14 @@ function cleanApiResponseText(text) {
     return cleaned.trim();
 }
 
-// --- PERSONA DEFINITIONS (Simplified for this route) ---
-// *** CHANGE: Use simple names matching the frontend/judge API ***
-// We only need the names to validate the personaId and potentially use in prompts.
-// The detailed prompts from /app/prompts/* are not directly used here.
-const validPersonaNames = ["Therapist", "Analyst", "Coach"];
-
-// Define the core perspective for prompt construction (can be simplified)
-const personaPerspectives = {
-    "Therapist": "objective psychotherapist analysing interaction dynamics",
-    "Analyst": "ruthless logical analyst",
-    "Coach": "results-oriented strategic coach"
+// Map persona IDs to their detailed system prompts
+const personaSystemPrompts = {
+    "Therapist": therapistPersona.system,
+    "Analyst": analystPersona.system,
+    "Coach": coachPersona.system
 };
+
+const validPersonaNames = Object.keys(personaSystemPrompts); // Use keys from the map
 
 
 export async function POST(request) {
@@ -80,12 +79,11 @@ export async function POST(request) {
         return NextResponse.json({ error: "Server configuration error: API key missing." }, { status: 500 });
     }
 
-    // --- Get Persona Perspective ---
-    // *** CHANGE: Use the simple personaId directly ***
-    const perspective = personaPerspectives[personaId];
-    if (!perspective) {
+    // --- Get Persona System Prompt ---
+    const systemPrompt = personaSystemPrompts[personaId];
+    if (!systemPrompt) {
         // This should technically be caught by the validation above, but as a safeguard:
-        console.error(`ASK_FOLLOWUP Error: Could not find perspective for valid persona ID "${personaId}". This indicates an internal inconsistency.`);
+        console.error(`ASK_FOLLOWUP Error: Could not find system prompt for valid persona ID "${personaId}". This indicates an internal inconsistency.`);
         return NextResponse.json({ error: `Internal server error processing persona: ${personaId}` }, { status: 500 });
     }
 
@@ -100,12 +98,8 @@ ${history.map(turn => `You asked: ${turn.question}\n${personaId} answered: ${tur
 `;
     }
 
-    // --- Construct Prompt (Using direct context/query and perspective) ---
-    // *** CHANGE: Construct prompt using the perspective string ***
-    const fullPrompt = `
-You are acting as a ${perspective}.
-**Strictly adhere to British English spelling, grammar, and phrasing.** Address 'you' directly. Use paragraph breaks (two newlines) for readability. Use **bold text using double asterisks** for emphasis on key insights where appropriate, but do not rely on it for structure. Be **concise**.
-
+    // --- Construct User Prompt ---
+    const userPromptContent = `
 --- Original Situation Context ---
 """${context}"""
 
@@ -117,12 +111,13 @@ You ask: "${question}"
 
 ---
 **Instructions for this Follow-up Response:**
-Respond *directly* and *conversationally* to the CURRENT follow-up question ("${question}").
-Maintain your core ${personaId} perspective (e.g., strategic for Coach, logical for Analyst, psychological for Therapist), but **DO NOT rigidly follow any multi-part structure** from previous instructions.
-Focus on providing a clear, concise answer to the specific question asked, integrating insights from the original context/query and conversation history as needed.
-Use paragraph breaks (two newlines) and **bold text** for emphasis where appropriate. Aim for approximately 100-150 words.
+1.  Embody the persona defined in the system prompt (tone, focus, constraints like avoiding advice if Therapist/Analyst).
+2.  Respond *directly* and *conversationally* to the CURRENT follow-up question ("${question}"). **Do NOT repeat your role definition or persona description.**
+3.  Focus on providing a clear, concise answer to the specific question asked, integrating insights from the original context/query and conversation history as needed.
+4.  Use paragraph breaks (two newlines) for readability. Use **bold text using double asterisks** for emphasis on key insights where appropriate.
+5.  Output *only* the natural language response. Do NOT output JSON or follow any JSON structure rules mentioned in the system prompt.
 `;
-    console.log(`ASK_FOLLOWUP: Sending prompt to ${personaId} (first 400 chars): ${fullPrompt.substring(0, 400)}...`);
+    console.log(`ASK_FOLLOWUP: Sending prompt to ${personaId} (User prompt first 400 chars): ${userPromptContent.substring(0, 400)}...`);
 
     // --- Define model parameters (used in getOpenRouterCompletion calls) ---
     const modelName = "openai/gpt-4.1"; // Target model
@@ -132,8 +127,8 @@ Use paragraph breaks (two newlines) and **bold text** for emphasis where appropr
     try {
         // Create messages array for OpenRouter
         const messages = [
-            { role: 'system', content: `You are acting as a ${perspective}.` },
-            { role: 'user', content: fullPrompt }
+            { role: 'system', content: systemPrompt }, // Use the detailed system prompt
+            { role: 'user', content: userPromptContent }
         ];
 
         // Call OpenRouter API

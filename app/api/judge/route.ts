@@ -21,11 +21,11 @@ interface JudgeResult {
   paraphrase: string; // A concise one-sentence summary from your perspective (max 25-30 words)
   personas: {
     name: "Therapist" | "Analyst" | "Coach"; // The specific persona providing the verdict
-    verdict: "Yes" | "No" | "Partially"; // The persona's judgment on your query
-    rationale: string; // The reasoning behind the verdict (target <= 120 words) - MUST cite references like [1] if provided and relevant
+    verdict?: "Yes" | "No" | "Partially"; // Optional: The persona's judgment (Not used by Analyst)
+    rationale: string; // The reasoning/analysis - MUST cite references like [1] if provided and relevant
     key_points: [string, string, string]; // Three distinct key takeaways or observations
   }[]; // Array containing results from Therapist, Analyst, and Coach IN THAT ORDER.
-  summary: string; // A unified verdict and actionable advice, starting directly with the verdict sentence (target <= 120 words) - MUST cite references like [1] if provided and relevant
+  summary: string; // Unified verdict starting directly with verdict sentence + core justification (neutral, authoritative) - MUST cite references like [1] if provided and relevant
 }
 `;
 
@@ -272,7 +272,7 @@ ${personaInstructions}
 **Output Requirements:**
 1.  Generate the 'paraphrase' field: A single, concise sentence (max 25-30 words) summarizing the core conflict/situation from your perspective, using British English.
 2.  Generate the 'personas' array: Include entries for "Therapist", "Analyst", and "Coach" IN THAT ORDER. Each entry must follow the structure defined in the interface and adhere to the specific system prompts and word counts provided for that persona. Use British English. Address 'you' directly in the rationale. Ensure 'key_points' is always an array of exactly three non-empty strings.
-3.  Generate the 'summary' field: Synthesize the key findings into a unified verdict and actionable advice. Start *directly* with the verdict sentence answering your query. Use British English. Your summary must be 120 words max. Address 'you' directly.
+3.  Generate the 'summary' field: Synthesize the key findings into a unified verdict. Start *directly* with the verdict sentence answering your query (e.g., 'Yes, you are not being unreasonable primarily because...'). State the single most crucial justification derived from the synthesized analysis. The tone must be neutral, authoritative, and conclusive. Use British English. Address 'you' directly.
 4.  Ensure the entire output is *only* the valid JSON object.
 ${citationInstruction} {/* Inserted Citation Rules */}
 `;
