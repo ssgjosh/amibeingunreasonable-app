@@ -125,7 +125,7 @@ Use paragraph breaks (two newlines) and **bold text** for emphasis where appropr
     console.log(`ASK_FOLLOWUP: Sending prompt to ${personaId} (first 400 chars): ${fullPrompt.substring(0, 400)}...`);
 
     // --- Define model parameters (used in getOpenRouterCompletion calls) ---
-    const modelName = "openai/gpt-4o"; // Target model
+    const modelName = "openai/gpt-4o-mini"; // Target model
     const defaultTemperature = 0.6;
 
     // --- Call OpenRouter API ---
