@@ -1,0 +1,7 @@
+{
+  "context": "My flatmate consistently leaves dirty dishes in the sink for days. I've asked them politely multiple times to clean up after themselves, but nothing changes. It's starting to attract pests and makes the kitchen unusable.",
+  "query": "Am I being unreasonable to consider moving out over this?",
+  "expected": {
+    "analystVerdict": "No"
+  }
+}

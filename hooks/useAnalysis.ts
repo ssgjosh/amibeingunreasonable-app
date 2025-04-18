@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation'; // Import useRouter
+import type { JudgeResult } from '@/lib/types'; // Import the JudgeResult type
 
 /**
  * Custom hook to manage the core state and logic for the AI analysis process,
@@ -10,7 +11,13 @@ import { useRouter } from 'next/navigation'; // Import useRouter
  * @param {Array} options.followUpQuestions - The array of generated follow-up questions.
  * @returns {Object} An object containing state values and handler functions.
  */
-export const useAnalysis = ({ getFollowUpAnswers, followUpQuestions }) => {
+// Define options type if possible, otherwise use a generic object or any
+interface UseAnalysisOptions {
+    getFollowUpAnswers?: () => Record<number, string>; // Function returning answers keyed by index
+    followUpQuestions?: string[]; // Array of question strings
+}
+
+export const useAnalysis = ({ getFollowUpAnswers, followUpQuestions }: UseAnalysisOptions = {}) => {
     const router = useRouter(); // Get router instance
 
     // --- State ---
@@ -20,19 +27,18 @@ export const useAnalysis = ({ getFollowUpAnswers, followUpQuestions }) => {
     const [customQuery, setCustomQuery] = useState('');
     const [queryToSend, setQueryToSend] = useState('');
     // API status
-    const [error, setError] = useState(null);
+    const [error, setError] = useState<string | null>(null); // Explicitly type error state
     const [loading, setLoading] = useState(false);
-    // const [isApiComplete, setIsApiComplete] = useState(false); // No longer needed here
     const [isTakingLong, setIsTakingLong] = useState(false);
     // UI / View state
     const [view, setView] = useState('input'); // 'input', 'loading', 'followup'
 
     // --- Refs ---
-    const longLoadTimeoutRef = useRef(null);
+    const longLoadTimeoutRef = useRef<NodeJS.Timeout | null>(null); // Type the ref
 
     // --- Handlers ---
 
-    const handleQueryOptionChange = useCallback((event) => {
+    const handleQueryOptionChange = useCallback((event: React.ChangeEvent<HTMLSelectElement>) => { // Type event
         const selectedValue = event.target.value;
         setSelectedQueryOption(selectedValue);
         if (selectedValue === 'other') {
@@ -45,7 +51,7 @@ export const useAnalysis = ({ getFollowUpAnswers, followUpQuestions }) => {
         setError(null); // Clear error on change
     }, []);
 
-    const handleCustomQueryChange = useCallback((event) => {
+    const handleCustomQueryChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => { // Type event
         const value = event.target.value;
         setCustomQuery(value);
         setQueryToSend(value);
@@ -56,7 +62,7 @@ export const useAnalysis = ({ getFollowUpAnswers, followUpQuestions }) => {
      * Gets analysis, saves it, and redirects to the results page.
      * @param {Array<{question: string, answer: string}>} [followUpResponses=[]] - Optional array of follow-up Q&A pairs.
      */
-    const proceedToAnalysisAndSave = useCallback(async (followUpResponses = []) => {
+    const proceedToAnalysisAndSave = useCallback(async (followUpResponses: Array<{question: string, answer: string}> = []) => { // Type param
         console.log("proceedToAnalysisAndSave triggered");
         const finalQuery = queryToSend.trim();
 
@@ -76,7 +82,6 @@ export const useAnalysis = ({ getFollowUpAnswers, followUpQuestions }) => {
 
         console.log("Resetting analysis states for API call...");
         setError(null);
-        // setIsApiComplete(false); // No longer needed
         setIsTakingLong(false);
         setLoading(true);
         setView('loading');
@@ -89,57 +94,70 @@ export const useAnalysis = ({ getFollowUpAnswers, followUpQuestions }) => {
             setIsTakingLong(true);
         }, LONG_LOAD_THRESHOLD);
 
-        let analysisData = null;
-        let apiError = null;
+        let analysisData: JudgeResult | null = null; // Use JudgeResult type
+        let apiError: string | null = null; // Explicitly type
 
         try {
-            // 1. Get Analysis Results
-            console.log("Sending request to /api/getResponses with query:", finalQuery);
-            console.log("Including follow-up responses:", followUpResponses);
-            const analysisRes = await fetch('/api/getResponses', {
+            // 1. Get Analysis Results from the NEW endpoint
+            console.log("Sending request to /api/judge with query:", finalQuery);
+            console.log("Including follow-up responses (if any, though /api/judge doesn't use them currently):", followUpResponses);
+            // *** CHANGE: Call /api/judge ***
+            const analysisRes = await fetch('/api/judge', {
                  method: 'POST',
                  headers: { 'Content-Type': 'application/json' },
                  body: JSON.stringify({
                      context,
                      query: finalQuery,
-                     followUpResponses
+                     // Note: /api/judge currently doesn't use followUpResponses, but sending doesn't hurt
+                     // followUpResponses
                  })
             });
 
-            clearTimeout(longLoadTimeoutRef.current); // Clear timeout once analysis response is received
-            console.log(`/api/getResponses response status: ${analysisRes.status}`);
+            if (longLoadTimeoutRef.current) clearTimeout(longLoadTimeoutRef.current); // Clear timeout once analysis response is received
+            console.log(`/api/judge response status: ${analysisRes.status}`);
 
+            // *** CHANGE: Handle error response (always JSON now) ***
             if (!analysisRes.ok) {
-                 const errorText = await analysisRes.text();
-                 console.error(`API HTTP Error (getResponses) ${analysisRes.status}:`, errorText);
-                 let detail = errorText;
-                 try { detail = JSON.parse(errorText).error || errorText; } catch { /* ignore */ }
-                 throw new Error(`Analysis failed: ${analysisRes.status} ${analysisRes.statusText || ''}. ${String(detail).substring(0, 100)}`);
+                 let errorJson: { error?: string; details?: any } = {};
+                 try {
+                     errorJson = await analysisRes.json();
+                     console.error(`API Error (judge) ${analysisRes.status}:`, errorJson);
+                 } catch (parseError) {
+                     // If parsing the error response fails, use status text
+                     console.error(`API Error (judge) ${analysisRes.status}: Failed to parse error JSON.`, await analysisRes.text().catch(() => ''));
+                 }
+                 // Construct a user-friendly error message
+                 const message = errorJson.error || `Analysis failed: ${analysisRes.status} ${analysisRes.statusText || ''}`;
+                 // Optionally include details if they exist and are simple
+                 const detailsString = errorJson.details && typeof errorJson.details === 'string' ? ` (${errorJson.details.substring(0, 50)}...)` : '';
+                 throw new Error(message + detailsString);
             }
 
-            analysisData = await analysisRes.json();
-            console.log("Analysis data received:", analysisData);
+            // *** CHANGE: Expect JudgeResult structure ***
+            analysisData = await analysisRes.json() as JudgeResult;
+            console.log("Analysis data received from /api/judge:", analysisData);
 
-            if (analysisData.error) {
-                throw new Error(`Analysis API returned an error: ${analysisData.error}`);
-            }
-            if (!Array.isArray(analysisData.responses) || !analysisData.summary) {
+            // Basic check if needed (though backend should guarantee structure on 200 OK)
+            if (!analysisData || !analysisData.personas || !analysisData.summary || !analysisData.paraphrase) {
                  throw new Error("Incomplete analysis data received from API.");
             }
 
             // 2. Save Analysis Results
             console.log("Attempting to save analysis results...");
+            // *** CHANGE: Adapt dataToSave to use JudgeResult structure ***
             const dataToSave = {
                 context,
                 query: finalQuery,
-                responses: analysisData.responses,
+                // Store the whole JudgeResult structure or extract parts as needed by saveResults
+                // Assuming saveResults expects the old structure for now:
+                responses: analysisData.personas, // Map personas array to old 'responses'
                 summary: analysisData.summary,
-                paraphrase: analysisData.paraphrase || '', // Include paraphrase if available
+                paraphrase: analysisData.paraphrase,
+                // Keep the rest as before
                 timestamp: new Date().toISOString(),
-                // Include the original follow-up questions and the *provided* answers
                 followUpResponses: (followUpQuestions || []).map((question, index) => ({
                     question,
-                    answer: followUpResponses[index]?.answer || '' // Use answers passed to this function
+                    answer: followUpResponses[index]?.answer || ''
                 }))
             };
 
@@ -166,19 +184,17 @@ export const useAnalysis = ({ getFollowUpAnswers, followUpQuestions }) => {
 
             // 3. Redirect to Results Page
             router.push(`/results/${id}`);
-            // No need to setLoading(false) or setView here, as we are navigating away
 
         } catch (err) {
-            clearTimeout(longLoadTimeoutRef.current); // Clear timeout on error
+            if (longLoadTimeoutRef.current) clearTimeout(longLoadTimeoutRef.current); // Clear timeout on error
             console.error("Error during analysis or saving:", err);
             apiError = err instanceof Error ? err.message : String(err);
             if (!apiError) apiError = "An unknown error occurred during analysis or saving.";
-            setError(apiError);
+            setError(apiError); // Set the error state for the UI
             setLoading(false);
             setView('input'); // Revert to input view on error
         }
-        // Removed finally block as redirect handles success state change
-    }, [context, queryToSend, router, followUpQuestions, setError, setView, setLoading, setIsTakingLong]); // Added router, setError, setView, setLoading, setIsTakingLong, followUpQuestions
+    }, [context, queryToSend, router, followUpQuestions, setError, setView, setLoading, setIsTakingLong]); // Dependencies seem okay
 
     /**
      * Main function to trigger analysis. Handles validation and decides whether
@@ -187,7 +203,7 @@ export const useAnalysis = ({ getFollowUpAnswers, followUpQuestions }) => {
      * @param {Function} generateFollowUpQuestions - Async function to trigger follow-up question generation.
      * @param {boolean} skipFollowUpQuestions - State indicating if follow-ups should be skipped.
      */
-    const askAI = useCallback(async (generateFollowUpQuestions, skipFollowUpQuestions) => {
+    const askAI = useCallback(async (generateFollowUpQuestions: Function | undefined, skipFollowUpQuestions: boolean) => { // Type params
         console.log("askAI triggered");
         setError(null); // Clear previous errors on new attempt
 
@@ -195,7 +211,6 @@ export const useAnalysis = ({ getFollowUpAnswers, followUpQuestions }) => {
 
         if (skipFollowUpQuestions) {
             console.log("Skipping follow-up questions, proceeding directly to analysis and save.");
-            // Retrieve current answers (likely empty if skipped) before proceeding
             const currentAnswers = typeof getFollowUpAnswers === 'function' ? getFollowUpAnswers() : {};
             const followUpResponses = (followUpQuestions || []).map((question, index) => ({
                 question,
@@ -206,6 +221,7 @@ export const useAnalysis = ({ getFollowUpAnswers, followUpQuestions }) => {
             console.log("Attempting to generate follow-up questions.");
             if (typeof generateFollowUpQuestions === 'function') {
                 // Pass the *correct* proceed function (proceedToAnalysisAndSave)
+                // Assuming generateFollowUpQuestions expects these args: context, query, setError, setView, proceedFn
                 await generateFollowUpQuestions(context, queryToSend, setError, setView, proceedToAnalysisAndSave);
             } else {
                 console.error("generateFollowUpQuestions function not provided to useAnalysis hook!");
@@ -226,8 +242,6 @@ export const useAnalysis = ({ getFollowUpAnswers, followUpQuestions }) => {
         setError(null);
         setView('input');
         setLoading(false);
-        // setHasAnalysed(false); // No longer needed
-        // setIsApiComplete(false); // No longer needed
         setIsTakingLong(false);
         if (longLoadTimeoutRef.current) clearTimeout(longLoadTimeoutRef.current);
         // Resetting other states (follow-up) should be done in the component
@@ -240,10 +254,10 @@ export const useAnalysis = ({ getFollowUpAnswers, followUpQuestions }) => {
         selectedQueryOption,
         customQuery,
         queryToSend,
-        error,
+        error, // Return the error state
         loading,
         isTakingLong,
-        view, // Still needed to control which section is visible
+        view,
 
         // State Setters needed by child components/other hooks
         setContext,
@@ -255,6 +269,6 @@ export const useAnalysis = ({ getFollowUpAnswers, followUpQuestions }) => {
         handleCustomQueryChange,
         askAI, // The main trigger
         handleRestart,
-        proceedToAnalysisAndSave // Exported for the FollowUpQuestionsSection skip button
+        proceedToAnalysisAndSave
     };
 };

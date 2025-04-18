@@ -22,7 +22,9 @@ import {
 } from '../../../components/ui/Icons'; // Adjust path
 
 // Import Shared Utilities
-import { cleanResponseText, extractVerdictParts } from '../../../lib/analysisUtils'; // Adjust path
+// Removed cleanResponseText and extractVerdictParts as they might not be needed for rationale/summary directly
+// If cleaning is still desired, it can be applied directly where needed.
+import { extractVerdictParts } from '../../../lib/analysisUtils'; // Keep for summary processing
 
 // Placeholder icons if not available in Icons.js
 const PlaceholderRestartIcon = () => <span>🔄</span>;
@@ -41,7 +43,7 @@ export default function SharedResultPage() {
         resultsData,
         loading,
         error: resultsError, // Rename to avoid conflict with chat error
-        selectedPersona,
+        selectedPersona, // This should match the 'name' field (e.g., "Therapist")
         isSwitchingPersona,
         handleSelectPersona
     } = useSharedResults(id, detailViewRef);
@@ -64,10 +66,13 @@ export default function SharedResultPage() {
     });
 
     // Process data for rendering
-    const cleanedSummary = resultsData?.summary ? cleanResponseText(resultsData.summary) : null;
-    const verdictParts = cleanedSummary ? extractVerdictParts(cleanedSummary) : null;
-    const selectedResponse = resultsData?.responses?.find(r => r?.persona === selectedPersona);
-    const validResponses = resultsData?.responses?.filter(r => r?.response && !r.response.startsWith("[")) || [];
+    // Apply verdict extraction to summary
+    const verdictParts = resultsData?.summary ? extractVerdictParts(resultsData.summary) : null;
+    // *** CHANGE: Filter based on 'rationale' field from the new structure ***
+    const validResponses = resultsData?.responses?.filter(r => r?.rationale) || [];
+    // Find selected response based on 'name' field matching selectedPersona state
+    const selectedResponse = validResponses?.find(r => r?.name === selectedPersona);
+
 
     // Web Share API / Clipboard Fallback Logic
     const handleShareClick = useCallback(async () => {
@@ -180,7 +185,8 @@ export default function SharedResultPage() {
                             </div>
 
                             {/* Verdict Section */}
-                            {cleanedSummary && !cleanedSummary.startsWith("[") && (
+                            {/* Render summary if it exists */}
+                            {resultsData.summary && (
                                 // Use theme border
                                 <div className="border-t border-border/40 pt-10 md:pt-12">
                                     {/* Heading: Use theme primary/accent gradient */}
@@ -207,19 +213,16 @@ export default function SharedResultPage() {
                                                 )}
                                             </>
                                         ) : (
-                                            <MarkdownRenderer content={cleanedSummary} className="prose-sm" isDark={true} />
+                                            // Fallback if verdictParts extraction fails, render raw summary
+                                            <MarkdownRenderer content={resultsData.summary} className="prose-sm" isDark={true} />
                                         )}
                                     </div>
                                 </div>
                             )}
-                            {resultsData.summary && resultsData.summary.startsWith("[") && (
-                                 <div className="max-w-3xl mx-auto pt-10 md:pt-12">
-                                     {/* Alert uses theme colors internally */}
-                                    <Alert type="warning" title="Verdict Issue" message="Could not generate the final verdict summary." />
-                                 </div>
-                            )}
+                            {/* Removed specific check for summary starting with '[' as backend handles errors */}
 
                             {/* Detailed Perspectives Section */}
+                            {/* *** CHANGE: Render condition based on validResponses *** */}
                             {validResponses.length > 0 && (
                                 // Use theme border
                                 <div className="border-t border-border/40 pt-10 md:pt-12">
@@ -227,29 +230,45 @@ export default function SharedResultPage() {
                                     <h2 className="text-2xl md:text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-primary via-accent to-primary mb-8 text-center tracking-tight">Detailed Analysis Perspectives</h2>
                                     {/* Persona Buttons: Use theme border */}
                                     <div className="flex justify-center flex-wrap gap-3 sm:gap-4 mb-10 border-b border-border/40 pb-6">
+                                         {/* *** CHANGE: Map over validResponses, use r.name for key and selection *** */}
                                          {validResponses.map((r) => (
                                             <button
-                                                key={r.persona}
-                                                onClick={() => handleSelectPersona(r.persona)}
+                                                key={r.name}
+                                                onClick={() => handleSelectPersona(r.name)}
                                                 // Use theme colors for selected/unselected states
-                                                className={`px-5 py-2 text-sm font-medium rounded-full transition-all transition-transform duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background whitespace-nowrap transform hover:scale-103 active:scale-100 ${ selectedPersona === r.persona ? 'bg-gradient-to-r from-primary to-accent text-white shadow-lg ring-2 ring-offset-1 ring-primary scale-105' : 'text-foreground bg-secondary/40 hover:bg-secondary/60 border border-border/60' }`}
+                                                className={`px-5 py-2 text-sm font-medium rounded-full transition-all transition-transform duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background whitespace-nowrap transform hover:scale-103 active:scale-100 ${ selectedPersona === r.name ? 'bg-gradient-to-r from-primary to-accent text-white shadow-lg ring-2 ring-offset-1 ring-primary scale-105' : 'text-foreground bg-secondary/40 hover:bg-secondary/60 border border-border/60' }`}
                                             >
-                                                {r.persona.split('(')[0].trim()}
+                                                {r.name} {/* Display the persona name directly */}
                                             </button>
                                          ))}
                                      </div>
                                     {/* Detailed View & Follow-up Area */}
                                     <div ref={detailViewRef} className={`transition-opacity duration-300 ease-in-out ${isSwitchingPersona ? 'opacity-30' : 'opacity-100'}`} >
-                                        {selectedResponse && !selectedResponse.response.startsWith("[") ? (
+                                        {/* *** CHANGE: Check selectedResponse and selectedResponse.rationale *** */}
+                                        {selectedResponse && selectedResponse.rationale ? (
                                             // Detail Box: Use theme secondary background, foreground, border
                                             <div key={selectedPersona} className="bg-secondary text-foreground rounded-2xl p-6 md:p-8 shadow-xl border border-border/50 max-w-3xl mx-auto animate-fadeIn mb-10">
                                                 {/* Heading: Use theme foreground */}
                                                 <h3 className="text-xl font-semibold text-foreground mb-5">
-                                                    {selectedResponse.persona}
+                                                    {/* *** CHANGE: Use selectedResponse.name *** */}
+                                                    {selectedResponse.name}
                                                 </h3>
                                                 <div className="text-[15px] leading-relaxed space-y-4">
                                                     {/* Markdown uses theme colors via props */}
-                                                    <MarkdownRenderer content={cleanResponseText(selectedResponse.response)} isDark={true} />
+                                                    {/* *** CHANGE: Render selectedResponse.rationale *** */}
+                                                    <MarkdownRenderer content={selectedResponse.rationale} isDark={true} />
+                                                    {/* Display Key Points */}
+                                                    {selectedResponse.key_points && Array.isArray(selectedResponse.key_points) && selectedResponse.key_points.length > 0 && (
+                                                        <div className="mt-6 pt-4 border-t border-border/50">
+                                                            <h4 className="text-sm font-semibold text-secondary-foreground mb-2">Key Points:</h4>
+                                                            {/* *** CHANGE: Add font-semibold to list items *** */}
+                                                            <ul className="list-disc list-inside space-y-1 text-sm text-secondary-foreground">
+                                                                {selectedResponse.key_points.map((point, index) => (
+                                                                    <li key={index} className="font-semibold">{point}</li>
+                                                                ))}
+                                                            </ul>
+                                                        </div>
+                                                    )}
                                                 </div>
 
                                                 {/* --- Follow-up Section --- */}
@@ -257,17 +276,18 @@ export default function SharedResultPage() {
                                                 <div className="mt-8 pt-6 border-t border-border/50">
                                                     {followUpPersonaId === null && (
                                                         <button
-                                                            onClick={() => handleStartFollowUp(selectedResponse.persona)}
+                                                            onClick={() => handleStartFollowUp(selectedResponse.name)} // Use name for starting follow-up
                                                             // Button: Use theme primary/accent gradient, white text, primary focus ring, background offset
                                                             className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-primary to-accent border border-transparent rounded-md shadow-sm hover:from-primary-hover hover:to-primary focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary focus:ring-offset-background"
                                                         >
-                                                            <ChatBubbleOvalLeftEllipsisIcon /> Ask follow-up with {selectedResponse.persona.split('(')[0].trim()}
+                                                            <ChatBubbleOvalLeftEllipsisIcon /> Ask follow-up with {selectedResponse.name}
                                                         </button>
                                                     )}
-                                                    {followUpPersonaId === selectedResponse.persona && (
+                                                    {/* *** CHANGE: Compare followUpPersonaId with selectedResponse.name *** */}
+                                                    {followUpPersonaId === selectedResponse.name && (
                                                         <div className="space-y-6">
                                                             {/* Heading: Use theme foreground */}
-                                                            <h4 className="text-lg font-semibold text-foreground">Continue conversation with {followUpPersonaId.split('(')[0].trim()}:</h4>
+                                                            <h4 className="text-lg font-semibold text-foreground">Continue conversation with {followUpPersonaId}:</h4>
                                                             {/* Chat Area: Use lighter secondary, border */}
                                                             <div className="space-y-4 max-h-96 overflow-y-auto pr-2 bg-secondary/50 p-4 rounded-lg border border-border/50">
                                                                 {followUpConversation.map((item, index) => (
@@ -276,7 +296,7 @@ export default function SharedResultPage() {
                                                                         <p className="font-semibold text-secondary-foreground mb-1">You:</p>
                                                                         <p className="mb-3 text-foreground whitespace-pre-wrap">{item.question}</p>
                                                                         {/* Persona Name: Use theme primary */}
-                                                                        <p className="font-semibold text-primary mb-1">{followUpPersonaId.split('(')[0].trim()}:</p>
+                                                                        <p className="font-semibold text-primary mb-1">{followUpPersonaId}:</p>
                                                                         {/* Response: Use theme foreground */}
                                                                         <div className="text-foreground">
                                                                             <MarkdownRenderer content={item.answer} isDark={true} className="prose-sm" />
@@ -304,7 +324,7 @@ export default function SharedResultPage() {
                                                                 <textarea
                                                                     value={followUpQuestion}
                                                                     onChange={(e) => setFollowUpQuestion(e.target.value)}
-                                                                    placeholder={`Ask ${followUpPersonaId.split('(')[0].trim()} another question...`}
+                                                                    placeholder={`Ask ${followUpPersonaId} another question...`}
                                                                     rows="3"
                                                                     // Input: Use theme secondary, border, foreground, primary focus
                                                                     className="flex-1 block w-full rounded-md border-border/70 bg-secondary/50 shadow-sm focus:border-primary focus:ring-primary sm:text-sm p-2 resize-none disabled:opacity-50 disabled:bg-secondary/30 text-foreground"
@@ -335,7 +355,7 @@ export default function SharedResultPage() {
                                 </div>
                             )}
 
-                            {/* Fallback message */}
+                            {/* Fallback message if no summary and no valid responses */}
                             {!resultsData.summary && validResponses.length === 0 && (
                                  // Text: Use theme secondary foreground, border
                                  <div className="text-center text-secondary-foreground py-10 border-t border-border/40 mt-10">

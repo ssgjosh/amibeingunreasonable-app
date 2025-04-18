@@ -1,4 +1,26 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, RefObject } from 'react';
+import type { JudgeResult } from '@/lib/types'; // Assuming JudgeResult is the core structure
+
+// Define a type for the data structure as saved/fetched by getResults API
+// This might differ slightly from JudgeResult if saveResults modifies it
+// For now, assume it includes the core fields we need.
+interface SavedResultData {
+    context?: string;
+    query?: string;
+    summary?: string;
+    paraphrase?: string;
+    timestamp?: string;
+    followUpResponses?: Array<{ question: string; answer: string }>;
+    // 'responses' here holds the array equivalent to JudgeResult['personas']
+    responses?: Array<{
+        name: "Therapist" | "Analyst" | "Coach";
+        verdict: "Yes" | "No" | "Partially";
+        rationale: string;
+        key_points: [string, string, string];
+    }>;
+}
+
+type PersonaName = "Therapist" | "Analyst" | "Coach";
 
 /**
  * Custom hook to manage fetching, state, and persona selection for shared results pages.
@@ -7,16 +29,21 @@ import { useState, useEffect, useCallback } from 'react';
  * @param {React.RefObject<HTMLElement>} detailViewRef - Ref for the detailed persona view card animation.
  * @returns {Object} An object containing state values and handler functions.
  */
-export const useSharedResults = (id, detailViewRef) => {
-    const [resultsData, setResultsData] = useState(null);
+export const useSharedResults = (id: string | string[] | undefined, detailViewRef: RefObject<HTMLElement>) => {
+    const [resultsData, setResultsData] = useState<SavedResultData | null>(null);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
-    const [selectedPersona, setSelectedPersona] = useState(null);
+    const [error, setError] = useState<string | null>(null);
+    // *** CHANGE: Initialize selectedPersona state directly to "Analyst" ***
+    // We will still set it to null initially and update after fetch to ensure data is ready.
+    const [selectedPersona, setSelectedPersona] = useState<PersonaName | null>(null); // Use PersonaName type
     const [isSwitchingPersona, setIsSwitchingPersona] = useState(false);
 
     // Effect to fetch results when the ID changes
     useEffect(() => {
-        if (!id) {
+        // Ensure id is a single string if it's an array (can happen with catch-all routes)
+        const resultId = Array.isArray(id) ? id[0] : id;
+
+        if (!resultId) {
             setError("No result ID provided in the URL.");
             setLoading(false);
             setResultsData(null); // Ensure data is cleared if ID is missing
@@ -28,10 +55,10 @@ export const useSharedResults = (id, detailViewRef) => {
             setError(null);
             setResultsData(null); // Clear previous results before fetching new ones
             setSelectedPersona(null); // Reset selected persona
-            console.log(`Fetching results for ID: ${id}`);
+            console.log(`Fetching results for ID: ${resultId}`);
 
             try {
-                const res = await fetch(`/api/getResults/${id}`);
+                const res = await fetch(`/api/getResults/${resultId}`);
                 if (!res.ok) {
                     let detail = `Server responded with status ${res.status}`;
                     try {
@@ -47,7 +74,7 @@ export const useSharedResults = (id, detailViewRef) => {
                     }
                     throw new Error(`Failed to fetch results (${res.status}): ${detail}`);
                 }
-                const data = await res.json();
+                const data: SavedResultData = await res.json();
 
                 if (typeof data !== 'object' || data === null) {
                     throw new Error("Received invalid data format from API.");
@@ -56,21 +83,18 @@ export const useSharedResults = (id, detailViewRef) => {
                 console.log("Results data received:", data);
                 setResultsData(data);
 
-                // Set default persona
+                // *** CHANGE: Always default to "Analyst" if responses exist ***
                 if (Array.isArray(data.responses) && data.responses.length > 0) {
-                    const analystResponse = data.responses.find(r => r?.persona?.includes("Analyst") && r.response && !r.response.startsWith("["));
-                    const firstValidResponse = data.responses.find(r => r?.response && !r.response.startsWith("["));
-                    const defaultPersona = analystResponse ? analystResponse.persona : (firstValidResponse ? firstValidResponse.persona : null);
-                    console.log(`Default persona determined: ${defaultPersona}`);
-                    setSelectedPersona(defaultPersona);
+                    console.log(`Setting default persona to: Analyst`);
+                    setSelectedPersona("Analyst");
                 } else {
-                    console.log("No valid responses found to set a default persona.");
-                    setSelectedPersona(null); // No valid responses
+                    console.log("No responses found, cannot set a default persona.");
+                    setSelectedPersona(null); // No responses to select from
                 }
 
             } catch (err) {
                 console.error("Error fetching shared results:", err);
-                setError(err.message || "An unknown error occurred while fetching results.");
+                setError(err instanceof Error ? err.message : "An unknown error occurred while fetching results.");
                 setResultsData(null); // Clear data on error
             } finally {
                 setLoading(false);
@@ -84,16 +108,16 @@ export const useSharedResults = (id, detailViewRef) => {
     /**
      * Handles selecting a persona in the results view, including animation logic.
      */
-    const handleSelectPersona = useCallback((persona) => {
-        if (persona === selectedPersona || isSwitchingPersona) return;
-        console.log(`Switching persona to: ${persona}`);
+    const handleSelectPersona = useCallback((personaName: PersonaName) => { // Use PersonaName type
+        if (personaName === selectedPersona || isSwitchingPersona) return;
+        console.log(`Switching persona to: ${personaName}`);
         setIsSwitchingPersona(true);
         if (detailViewRef?.current) { // Check if ref exists
             detailViewRef.current.classList.remove('animate-fadeIn');
             void detailViewRef.current.offsetWidth; // Trigger reflow
         }
         setTimeout(() => {
-            setSelectedPersona(persona);
+            setSelectedPersona(personaName);
             setTimeout(() => {
                 setIsSwitchingPersona(false);
                 requestAnimationFrame(() => {

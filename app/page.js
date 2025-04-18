@@ -3,7 +3,7 @@ import React, { useRef, useCallback, lazy, Suspense } from 'react';
 import { useRouter } from 'next/navigation'; // Import useRouter
 
 // Import Hooks
-import { useAnalysis } from '../hooks/useAnalysis';
+import { useAnalysis } from '../hooks/useAnalysis'; // Revert to extensionless import
 import { useFollowUpQuestions } from '../hooks/useFollowUpQuestions';
 // Removed useFollowUpChat and useSharing imports
 

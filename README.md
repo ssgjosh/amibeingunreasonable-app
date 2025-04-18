@@ -20,6 +20,13 @@ You can start editing the page by modifying `app/page.js`. The page auto-updates
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## Key Features
+
+*   **Multi-Persona Analysis:** Analyzes user input from Therapist, Analyst, and Coach perspectives using Google Gemini.
+*   **RAG Integration (Experimental):** For certain topics (parenting, tenancy, workplace), the AI attempts to retrieve relevant snippets from external sources (NHS, Citizens Advice, ACAS, Shelter) and cite them in its response using bracketed numbers like [1]. This uses Upstash Redis for caching. Requires `STORAGE_REDIS_URL`, `STORAGE_KV_REST_API_TOKEN`, `STORAGE_KV_REST_API_URL` environment variables (expected to be injected via Vercel).
+*   **Zod Validation:** Ensures the AI output conforms to the expected JSON structure.
+*   **Golden File Testing:** Uses Jest to run tests against predefined scenarios in the `tests/golden` directory.
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:

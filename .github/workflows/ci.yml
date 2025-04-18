@@ -1,0 +1,45 @@
+# .github/workflows/ci.yml
+name: Node.js CI
+
+on:
+  push:
+    branches: [ main ] # Or your primary branch
+  pull_request:
+    branches: [ main ] # Or your primary branch
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x] # Test on relevant Node.js versions
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4 # Use latest version
+
+    - name: Set up Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4 # Use latest version
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm' # Enable caching for npm dependencies
+
+    - name: Install dependencies
+      run: npm ci # Use 'ci' for faster, reliable installs in CI
+
+    - name: Run tests
+      run: npm run test
+      env:
+        # Add any necessary environment variables for tests here
+        # Example: If your tests need an API key (use secrets for sensitive data)
+        # GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY_TEST }}
+        CI: true # Often used by testing frameworks
+
+    # Optional: Add step for linting
+    # - name: Run linter
+    #   run: npm run lint
+
+    # Optional: Add step for building
+    # - name: Build project
+    #   run: npm run build

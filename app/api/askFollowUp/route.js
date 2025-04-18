@@ -1,17 +1,12 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 // Removed Redis import as we get context/query directly
-// import { Redis } from '@upstash/redis';
 import { NextResponse } from 'next/server';
 
 // Initialize AI client
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY);
-// Removed Redis client initialization
-// const redis = new Redis({
-//   url: process.env.STORAGE_KV_REST_API_URL,
-//   token: process.env.STORAGE_KV_REST_API_TOKEN,
-// });
 
 // --- ROBUST Helper function to clean API response text (Copied from getResponses) ---
+// (Keep this function as it's still used for the follow-up response)
 function cleanApiResponseText(text) {
     if (!text || typeof text !== 'string') return '';
     let cleaned = text;
@@ -38,48 +33,19 @@ function cleanApiResponseText(text) {
     return cleaned.trim();
 }
 
-// --- PERSONA PROMPTS (Copied from getResponses - ensure consistency) ---
-const personas = [
-    {
-        name: "Therapist (Interaction Dynamics)",
-        prompt: `
-You are an objective psychotherapist analysing interaction dynamics. **Strictly adhere to British English spelling, grammar, and phrasing.** Address 'you' directly. Use paragraph breaks (two newlines) for readability. Use **bold text using double asterisks** for emphasis on key insights where appropriate, but do not rely on it for structure. Be **concise**.
+// --- PERSONA DEFINITIONS (Simplified for this route) ---
+// *** CHANGE: Use simple names matching the frontend/judge API ***
+// We only need the names to validate the personaId and potentially use in prompts.
+// The detailed prompts from /app/prompts/* are not directly used here.
+const validPersonaNames = ["Therapist", "Analyst", "Coach"];
 
-Based *exclusively* on the provided context and considering the user's query:
-*   Identify the **core psychological dynamic** at play.
-*   Identify the **primary psychological conflict** evident. **Validate objective concerns** first if applicable.
-*   Briefly analyse the likely **emotional drivers and assumptions** for **both** parties shown.
-*   Identify the main **communication breakdown** and **negative feedback loop**.
-*   Briefly reflect on any **apparent biases** evident in *your description*.
-        `
-    },
-    {
-        name: "Analyst (Logical Assessment)",
-        prompt: `
-You are a ruthless logical analyst. **Strictly adhere to British English spelling, grammar, and phrasing.** Address 'you' directly. Use paragraph breaks (two newlines). Use **bold text using double asterisks** for emphasis on key terms/conclusions where appropriate, but do not rely on it for structure. **Be extremely concise and definitive.** NO hedging.
+// Define the core perspective for prompt construction (can be simplified)
+const personaPerspectives = {
+    "Therapist": "objective psychotherapist analysing interaction dynamics",
+    "Analyst": "ruthless logical analyst",
+    "Coach": "results-oriented strategic coach"
+};
 
-State your definitive conclusion (Yes/No/Partially) to the user's query **first**.
-
-Then, justify this by assessing the logic: Identify any **Unsupported assumptions**. State the **Primary trigger**. Assess the **Proportionality** of the reaction. Evaluate the **Effectiveness** of your described reaction.
-
-Finally, reiterate your conclusion with the core logical reason. **Avoid numbered lists**; use flowing paragraphs separated by two newlines.
-        `
-    },
-    {
-        name: "Coach (Strategic Action)",
-        prompt: `
-You are a results-oriented strategic coach. **Strictly adhere to British English spelling, grammar, and phrasing.** Address 'you' directly. Use paragraph breaks (two newlines). Use **bold text using double asterisks** for emphasis on key actions/wording where appropriate, but do not rely on it for structure. Use plain language. **Be concise.**
-
-First, state your assessment of the effectiveness of the user's described reaction (e.g., 'effective', 'ineffective/counterproductive').
-
-Then:
-*   Clearly state the **most critical strategic objective** now.
-*   Provide the **most strategically advantageous** action plan as a series of clear steps using distinct paragraphs separated by two newlines. Use **bold text (double asterisks)** for key actions or suggested phrasing. **CRITICAL: Do NOT use numbered lists (1, 2, 3) or bullet points (-). Use PARAGRAPHS ONLY, separated by two newlines.**
-*   Address the query's *underlying goal*: Explain why this action plan is **strategically superior**.
-Focus ruthlessly on the best possible outcome.
-        `
-    },
-];
 
 export async function POST(request) {
     let requestBody;
@@ -98,9 +64,9 @@ export async function POST(request) {
         console.warn("ASK_FOLLOWUP Validation failed: Question insufficient.");
         return NextResponse.json({ error: "Follow-up question required (min 3 chars)." }, { status: 400 });
     }
-    if (!personaId || typeof personaId !== 'string') {
-        console.warn("ASK_FOLLOWUP Validation failed: Persona ID missing or invalid.");
-        return NextResponse.json({ error: "Persona ID required." }, { status: 400 });
+    if (!personaId || typeof personaId !== 'string' || !validPersonaNames.includes(personaId)) { // *** CHANGE: Validate against simple names ***
+        console.warn(`ASK_FOLLOWUP Validation failed: Persona ID missing or invalid: ${personaId}`);
+        return NextResponse.json({ error: `Invalid persona specified: ${personaId}` }, { status: 400 });
     }
     // Added validation for context and query
     if (!context || typeof context !== 'string' || context.trim().length < 10) {
@@ -111,32 +77,22 @@ export async function POST(request) {
         console.warn("ASK_FOLLOWUP Validation failed: Original query insufficient.");
         return NextResponse.json({ error: "Original query required (min 5 chars)." }, { status: 400 });
     }
-    // Removed validation for originalContextId
-    // if (!originalContextId || typeof originalContextId !== 'string') { ... }
 
     // --- API Key Check ---
     if (!process.env.GEMINI_API_KEY && !process.env.GOOGLE_API_KEY) {
         console.error("ASK_FOLLOWUP API Key Error: Env var missing.");
         return NextResponse.json({ error: "Server configuration error: API key missing." }, { status: 500 });
     }
-    // Removed Redis check
-    // if (!process.env.STORAGE_KV_REST_API_URL || !process.env.STORAGE_KV_REST_API_TOKEN) { ... }
 
-    // --- Retrieve Original Context (Removed - context/query now passed directly) ---
-    // const redisKey = `result:${originalContextId}`;
-    // let originalData;
-    // try {
-    //     originalData = await redis.hgetall(redisKey);
-    //     if (!originalData || !originalData.context || !originalData.query) { ... }
-    //     console.log(`ASK_FOLLOWUP: Successfully retrieved original context for ${redisKey}`);
-    // } catch (redisError) { ... }
-
-    // --- Find Persona Prompt ---
-    const selectedPersona = personas.find(p => p.name === personaId);
-    if (!selectedPersona) {
-        console.error(`ASK_FOLLOWUP Error: Persona ID "${personaId}" not found.`);
-        return NextResponse.json({ error: `Invalid persona specified: ${personaId}` }, { status: 400 });
+    // --- Get Persona Perspective ---
+    // *** CHANGE: Use the simple personaId directly ***
+    const perspective = personaPerspectives[personaId];
+    if (!perspective) {
+        // This should technically be caught by the validation above, but as a safeguard:
+        console.error(`ASK_FOLLOWUP Error: Could not find perspective for valid persona ID "${personaId}". This indicates an internal inconsistency.`);
+        return NextResponse.json({ error: `Internal server error processing persona: ${personaId}` }, { status: 500 });
     }
+
 
     // --- Prepare Conversation History String (Optional) ---
     let conversationHistoryString = '';
@@ -148,33 +104,36 @@ ${history.map(turn => `You asked: ${turn.question}\n${personaId} answered: ${tur
 `;
     }
 
-    // --- Construct Prompt (Using direct context/query) ---
+    // --- Construct Prompt (Using direct context/query and perspective) ---
+    // *** CHANGE: Construct prompt using the perspective string ***
     const fullPrompt = `
-${selectedPersona.prompt}
+You are acting as a ${perspective}.
+**Strictly adhere to British English spelling, grammar, and phrasing.** Address 'you' directly. Use paragraph breaks (two newlines) for readability. Use **bold text using double asterisks** for emphasis on key insights where appropriate, but do not rely on it for structure. Be **concise**.
 
 --- Original Situation Context ---
 """${context}"""
 
---- Original User Query ---
+--- Your Original Query ---
 "${query}"
 ${conversationHistoryString}
---- Current Follow-up Question from User ---
-User asks: "${question}"
+--- Your Current Follow-up Question ---
+You ask: "${question}"
 
 ---
 **Instructions for this Follow-up Response:**
-Respond *directly* and *conversationally* to the user's CURRENT follow-up question ("${question}").
-Maintain your core ${personaId} perspective (e.g., strategic for Coach, logical for Analyst, psychological for Therapist), but **DO NOT rigidly follow the multi-part structure** outlined in your initial persona instructions above.
+Respond *directly* and *conversationally* to the CURRENT follow-up question ("${question}").
+Maintain your core ${personaId} perspective (e.g., strategic for Coach, logical for Analyst, psychological for Therapist), but **DO NOT rigidly follow any multi-part structure** from previous instructions.
 Focus on providing a clear, concise answer to the specific question asked, integrating insights from the original context/query and conversation history as needed.
 Use paragraph breaks (two newlines) and **bold text** for emphasis where appropriate. Aim for approximately 100-150 words.
 `;
     console.log(`ASK_FOLLOWUP: Sending prompt to ${personaId} (first 400 chars): ${fullPrompt.substring(0, 400)}...`);
 
     // --- Call AI Model ---
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-thinking-exp-01-21" }); // Use same model as getResponses
+    // Consider using the same model as /api/judge if consistency is desired
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
     const generationConfig = {
         temperature: 0.6,
-        maxOutputTokens: 800 // Use same config as getResponses
+        maxOutputTokens: 800 // Keep sufficient tokens for conversational response
     };
 
     try {
@@ -201,15 +160,24 @@ Use paragraph breaks (two newlines) and **bold text** for emphasis where appropr
     } catch (error) {
         console.error(`ASK_FOLLOWUP Error generating response for ${personaId}:`, error);
         let errorMessage = `[Analysis Error: ${error.message || 'Unknown error'}]`;
-        if (error.message && error.message.includes("API key not valid")) { errorMessage = "[Analysis Error: Invalid API Key]"; }
-        else if (error.message && error.message.includes("quota")) { errorMessage = "[Analysis Error: API Quota Exceeded]"; }
-        else if (error.message && error.message.includes("SAFETY")) { errorMessage = "[Analysis Error: Content blocked by safety filter]"; }
-
-        // Return specific error status codes if possible
         let statusCode = 500;
-        if (errorMessage.includes("Invalid API Key")) statusCode = 500; // Internal config issue
-        if (errorMessage.includes("API Quota Exceeded")) statusCode = 429; // Too Many Requests
-        if (errorMessage.includes("safety filter")) statusCode = 400; // Bad Request (problematic content)
+        const blockReason = error?.response?.promptFeedback?.blockReason;
+
+        if (blockReason) {
+            errorMessage = `Content blocked by safety filters: ${blockReason}`;
+            statusCode = 400;
+        } else if (error.message) {
+            if (error.message.includes("API key not valid")) {
+                errorMessage = "Server configuration error: Invalid API Key.";
+                statusCode = 500;
+            } else if (error.message.includes("quota")) {
+                errorMessage = "API quota exceeded. Please try again later.";
+                statusCode = 429;
+            } else {
+                errorMessage = `AI generation failed: ${error.message}`;
+                statusCode = 500;
+            }
+        }
 
         return NextResponse.json({ error: errorMessage.replace(/^\[|\]$/g, '') }, { status: statusCode });
     }
