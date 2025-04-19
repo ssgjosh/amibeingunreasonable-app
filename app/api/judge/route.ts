@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+export const maxDuration = 60; // Set Vercel timeout to 60 seconds
 // Removed: import { HarmCategory, HarmBlockThreshold, GenerativeModel } from '@google/generative-ai';
 import { ChatCompletionMessageParam } from 'openai/resources/chat/completions'; // Added for typing
 import { therapistPersona } from '@/app/prompts/therapist';
@@ -7,25 +8,35 @@ import { coachPersona } from '@/app/prompts/coach';
 import { validateJudgeResponse, JudgeResultValidated } from '@/lib/validateJudge';
 import { retrieveSnippets, Snippet } from '@/lib/retrieveSnippets';
 // Removed: import { getGemini } from '../../../lib/geminiClient';
-import { getOpenRouterCompletion } from '@/lib/openRouterClient'; // Changed import
-import { domainKeywords, approvedDomainSet, ApprovedDomain } from '@/lib/domainKeywords';
+import { getOpenRouterCompletion, openRouter } from '@/lib/openRouterClient'; // Changed import + added openRouter
+// Removed: import { domainKeywords, approvedDomainSet, ApprovedDomain } from '@/lib/domainKeywords';
+import { Redis } from '@upstash/redis'; // Import Redis
+import { nanoid } from 'nanoid'; // Import nanoid
 
-// --- Define Type Guard using the imported Set ---
-function isApprovedDomain(domain: string): domain is ApprovedDomain {
-    return approvedDomainSet.has(domain);
-}
+// Initialize Upstash Redis client
+const redis = new Redis({
+  url: process.env.STORAGE_KV_REST_API_URL!, // Use non-null assertion or handle potential undefined
+  token: process.env.STORAGE_KV_REST_API_TOKEN!, // Use non-null assertion or handle potential undefined
+});
+
+// Removed Type Guard for ApprovedDomain
+
+// --- Define Constants ---
+const REDIS_SUMMARY_KEY = 'source_summaries';
+const RELEVANCE_MODEL = 'openai/gpt-4.1-mini'; // Changed model as requested
+const TOP_N_SOURCES = 3; // Number of relevant sources to retrieve
 
 // --- Define the JudgeResult Interface (for inclusion in the prompt) ---
 const judgeResultInterfaceString = `
 interface JudgeResult {
   paraphrase: string; // A concise one-sentence summary from your perspective (max 25-30 words)
   personas: {
-    name: "Therapist" | "Analyst" | "Coach"; // The specific persona providing the verdict
-    verdict?: "Yes" | "No" | "Partially"; // Optional: The persona's judgment (Not used by Analyst)
-    rationale: string; // The reasoning/analysis - MUST cite references like [1] if provided and relevant
-    key_points: [string, string, string]; // Three distinct key takeaways or observations
+    name: "Therapist" | "Analyst" | "Coach"; // The specific persona
+    // verdict removed
+    rationale: string; // The detailed reasoning/analysis in paragraph form (NO bullet points or lists), following the specific persona's system prompt below - MUST cite references like [1] if provided and relevant
+    // key_points removed
   }[]; // Array containing results from Therapist, Analyst, and Coach IN THAT ORDER.
-  summary: string; // Unified verdict starting directly with verdict sentence + core justification (neutral, authoritative) - MUST cite references like [1] if provided and relevant
+  summary: string; // Detailed unified verdict (approx 90-120 words) starting directly with verdict sentence + core justification (neutral, authoritative) - MUST cite references like [1] if provided and relevant
 }
 `;
 
@@ -166,7 +177,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid request format. Ensure you are sending valid JSON." }, { status: 400 });
   }
 
-  const { context, query } = requestBody;
+  const { context, query, followUpResponses } = requestBody; // Added followUpResponses
 
   // --- Input Validation ---
   if (!context || typeof context !== 'string' || context.trim().length < 10) {
@@ -178,47 +189,82 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Specific query/worry required (min 5 chars)." }, { status: 400 });
   }
 
-  // --- Domain Detection ---
-  let detectedDomain: ApprovedDomain | null = null;
-  const lowerContext = context.toLowerCase();
-  const lowerQuery = query.toLowerCase();
-  const combinedText = `${lowerContext} ${lowerQuery}`;
-  const keywordHitThreshold = 2;
-
-  for (const [domain, keywords] of Object.entries(domainKeywords)) {
-      let hitCount = 0;
-      for (const keyword of keywords) {
-          const regex = new RegExp(`\\b${keyword.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')}\\b`, 'gi');
-          if (combinedText.match(regex)) {
-              hitCount++;
-          }
-      }
-
-      if (hitCount >= keywordHitThreshold) {
-          if (isApprovedDomain(domain)) {
-              detectedDomain = domain;
-              console.log(`Judge Route: Domain detected: ${detectedDomain} (Hits: ${hitCount})`);
-              break;
-          } else {
-              console.warn(`Judge Route: Keyword match for domain '${domain}' but it's not in approvedDomainSet.`);
-          }
-      }
-  }
-
-  if (!detectedDomain) {
-      console.log(`Judge Route: No domain detected meeting threshold (${keywordHitThreshold} hits). Skipping RAG.`);
-  }
-
-  // --- Snippet Retrieval ---
+  // --- Semantic Relevance Matching ---
+  let relevantSourceUrls: string[] = [];
   let snippets: Snippet[] = [];
-  if (detectedDomain) {
+  const userQueryCombined = `${context}\n\nQuery: ${query}`; // Combine context and query for relevance check
+
+  try {
+      console.log(`[Judge Route] Fetching summaries from Redis hash: ${REDIS_SUMMARY_KEY}`);
+      const summariesMap = await redis.hgetall(REDIS_SUMMARY_KEY);
+
+      if (!summariesMap || Object.keys(summariesMap).length === 0) {
+          console.warn(`[Judge Route] No summaries found in Redis hash '${REDIS_SUMMARY_KEY}'. Skipping RAG.`);
+      } else {
+          console.log(`[Judge Route] Found ${Object.keys(summariesMap).length} summaries in Redis.`);
+          const availableResources = Object.entries(summariesMap)
+              .map(([url, summary]) => ({ url, summary: summary as string })) // Type assertion
+              .filter(item => item.summary && item.summary.length > 10); // Basic validation
+
+          if (availableResources.length > 0) {
+              const relevancePrompt = `
+User Query: "${userQueryCombined}"
+
+Available Resources:
+${JSON.stringify(availableResources, null, 2)}
+Task: Based *only* on the User Query and the summaries provided in Available Resources, identify **up to ${TOP_N_SOURCES} resources** whose primary subject matter directly addresses the main topic of the User Query. **Strictly prioritize direct relevance.** Do **NOT** include resources that are only tangentially related or focus on secondary aspects like emotional impact. Return *only* a valid JSON array containing the URLs of these directly relevant resources, ordered from most to least relevant. If fewer than ${TOP_N_SOURCES} resources are directly relevant, return only those that are. If **no resources** are directly relevant to the main topic (e.g., the query is about gardening and the resources are about tenancy disputes), you MUST return an empty array []. Example format: ["url_most_relevant", "url_second_most"]
+
+`;
+
+              console.log(`[Judge Route] Sending relevance check prompt to ${RELEVANCE_MODEL}...`);
+              // Use getOpenRouterCompletion directly for this specific, simpler call
+              const relevanceResponse = await getOpenRouterCompletion(
+                  [{ role: 'user', content: relevancePrompt }],
+                  RELEVANCE_MODEL,
+                  0.2, // Low temperature for deterministic ranking
+                  200 // Max tokens for the URL list
+              );
+
+              if (relevanceResponse) {
+                  try {
+                      // Attempt to parse the response as a JSON array of strings
+                      const parsedUrls = JSON.parse(relevanceResponse);
+                      if (Array.isArray(parsedUrls) && parsedUrls.every(item => typeof item === 'string')) {
+                          relevantSourceUrls = parsedUrls.slice(0, TOP_N_SOURCES); // Ensure max TOP_N
+                          console.log(`[Judge Route] AI identified ${relevantSourceUrls.length} relevant URLs:`, relevantSourceUrls);
+                      } else {
+                          console.error("[Judge Route] Relevance AI response was not a valid JSON array of strings:", relevanceResponse);
+                      }
+                  } catch (parseError) {
+                      console.error("[Judge Route] Failed to parse relevance AI response JSON:", parseError);
+                      console.error("[Judge Route] Failing Raw Text:", relevanceResponse);
+                  }
+              } else {
+                  console.error("[Judge Route] Empty response received from relevance AI.");
+              }
+          } else {
+               console.log("[Judge Route] No valid summaries available after filtering.");
+          }
+      }
+  } catch (error: any) {
+      console.error("[Judge Route] Error during semantic relevance matching:", error.message || error);
+      // Continue without snippets if relevance matching fails
+      relevantSourceUrls = [];
+  }
+
+  // --- Snippet Retrieval (using relevantSourceUrls) ---
+  if (relevantSourceUrls.length > 0) {
     try {
-      snippets = await retrieveSnippets(detectedDomain);
-       console.log(`Judge Route: Retrieved ${snippets.length} snippets for domain ${detectedDomain}.`);
-    } catch (error) {
-       console.error(`Judge Route: Error retrieving snippets for domain ${detectedDomain}:`, error);
-       snippets = [];
+      // Pass the identified relevant URLs and the original context/query
+      // Assuming retrieveSnippets is updated to accept string[] instead of ApprovedDomain
+      snippets = await retrieveSnippets(relevantSourceUrls, userQueryCombined);
+      console.log(`[Judge Route] Retrieved ${snippets.length} snippets based on semantic relevance.`);
+    } catch (error: any) {
+      console.error(`[Judge Route] Error retrieving snippets for relevant URLs:`, error.message || error);
+      snippets = []; // Ensure snippets is empty on error
     }
+  } else {
+      console.log("[Judge Route] No relevant source URLs identified. Skipping snippet retrieval.");
   }
 
   // --- Define Model Config (Now passed to helper) ---
@@ -231,9 +277,17 @@ export async function POST(request: Request) {
   // Error handling for client setup is within openRouterClient.ts
 
   // --- Construct the Prompt Components ---
-  const personaInstructions = [therapistPersona, analystPersona, coachPersona]
-    .map(p => `--- ${p.example.name} Persona --- \nSystem Prompt:\n${p.system}\nExample Output Structure:\n${JSON.stringify(p.example, null, 2)}`)
-    .join('\n\n');
+  // Embed the actual system prompts for each persona
+  const embeddedPersonaPrompts = `
+--- Therapist Persona System Prompt ---
+${therapistPersona.system}
+
+--- Analyst Persona System Prompt ---
+${analystPersona.system}
+
+--- Coach Persona System Prompt ---
+${coachPersona.system}
+`;
 
   // --- Build References Block and Citation Instruction ---
   let referencesBlock = '';
@@ -266,20 +320,32 @@ You are an AI assistant tasked with analyzing the situation and query provided b
 ${judgeResultInterfaceString}
 \`\`\`
 
-**Persona Roles & Examples:**
-${personaInstructions}
+**Persona System Prompts (Follow these for each persona's 'rationale'):**
+${embeddedPersonaPrompts}
 
 **Output Requirements:**
 1.  Generate the 'paraphrase' field: A single, concise sentence (max 25-30 words) summarizing the core conflict/situation from your perspective, using British English.
-2.  Generate the 'personas' array: Include entries for "Therapist", "Analyst", and "Coach" IN THAT ORDER. Each entry must follow the structure defined in the interface and adhere to the specific system prompts and word counts provided for that persona. Use British English. Address 'you' directly in the rationale. Ensure 'key_points' is always an array of exactly three non-empty strings.
-3.  Generate the 'summary' field: Synthesize the key findings into a unified verdict. Start *directly* with the verdict sentence answering your query (e.g., 'Yes, you are not being unreasonable primarily because...'). State the single most crucial justification derived from the synthesized analysis. The tone must be neutral, authoritative, and conclusive. Use British English. Address 'you' directly.
+2.  Generate the 'personas' array: Include entries for "Therapist", "Analyst", and "Coach" IN THAT ORDER. Each entry must follow the structure defined in the interface (NOTE: no 'verdict' field for personas). **CRITICAL: The 'rationale' for each persona MUST follow the specific instructions in the corresponding embedded system prompt above AND be detailed paragraphs. The rationale MUST NOT EXCEED approximately 120 words. Be concise. Do NOT use bullet points or numbered lists within the rationale.** Use British English. Address 'you' directly in the rationale.
+3.  Generate the 'summary' field: Synthesize the key findings into a detailed unified verdict (approx 90-120 words). Start *directly* with the verdict sentence answering your query (e.g., 'Yes, you are not being unreasonable primarily because...'). Provide the core justification derived from the synthesized analysis. The tone must be neutral, authoritative, and conclusive. Use British English. Address 'you' directly.
 4.  Ensure the entire output is *only* the valid JSON object.
 ${citationInstruction} {/* Inserted Citation Rules */}
 `;
+// --- User Prompt for OpenRouter ---
+// Prepare follow-up responses section if available
+let followUpSection = '';
+if (followUpResponses && Array.isArray(followUpResponses) && followUpResponses.length > 0) {
+    const validFollowUps = followUpResponses.filter(item =>
+        item && typeof item.question === 'string' && typeof item.answer === 'string' &&
+        item.question.trim() && item.answer.trim()
+    );
+    if (validFollowUps.length > 0) {
+        followUpSection = `\n\n**Additional Context from Follow-up Questions:**\n${validFollowUps.map(item => `Q: ${item.question}\nA: ${item.answer}`).join('\n\n')}`;
+    }
+}
 
-  // --- User Prompt for OpenRouter ---
-  const userPromptContent = `
+const userPromptContent = `
 ${referencesBlock} {/* Inserted References Block */}
+
 
 **Task:**
 Based *exclusively* on the context and query provided by 'you' below, generate the JSON object according to the interface and instructions in the system prompt.
@@ -290,7 +356,7 @@ ${context}
 """
 
 **Your Specific Query/Worry:**
-"${query}"
+"${query}"${followUpSection} {/* Added Follow-up Section */}
 
 **Your JSON Response:**
 `;
@@ -308,9 +374,40 @@ ${context}
 
   // --- Handle Result ---
   if (result.success) {
-    const responseData = { ...result.data, snippets: snippets.length > 0 ? snippets : undefined };
-    return NextResponse.json(responseData, { status: 200 });
+    // --- Save Results to Redis ---
+    const resultId = nanoid(10);
+    const key = `result:${resultId}`;
+    console.log(`Judge Route: Generated result ID: ${resultId}`);
+
+    const dataToSave = {
+      context: context,
+      query: query,
+      summary: result.data.summary, // from validated AI response
+      paraphrase: result.data.paraphrase, // from validated AI response
+      // IMPORTANT: Stringify arrays/objects for Redis hash
+      responses: JSON.stringify(result.data.personas), // Save validated personas
+      snippets: JSON.stringify(snippets || []), // Save snippets if RAG was used
+      timestamp: new Date().toISOString(),
+      // Save initial clarifying questions if they were passed in
+      followUpResponses: JSON.stringify(followUpResponses || [])
+    };
+
+    try {
+        await redis.hset(key, dataToSave);
+        console.log(`Judge Route: Successfully saved results to Redis key: ${key}`);
+        // SET EXPIRATION IF NEEDED: await redis.expire(key, EXPIRATION_SECONDS);
+
+        // On success, return ONLY the resultId
+        return NextResponse.json({ resultId: resultId }, { status: 200 });
+
+    } catch (redisError: any) {
+        console.error(`Judge Route: Failed to save results to Redis key ${key}:`, redisError);
+        // Return 500 if saving fails, critical step
+        return NextResponse.json({ error: `Failed to save results: ${redisError.message || 'Unknown Redis error'}` }, { status: 500 });
+    }
+
   } else {
+    // Ensure error responses do not include resultId
     return NextResponse.json({ error: result.error, details: result.details }, { status: result.status });
   }
 }

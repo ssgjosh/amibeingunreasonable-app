@@ -3,7 +3,7 @@
 <html lang="en">
 
 <head>
-    <title>Code coverage report for lib/approvedSources.ts</title>
+    <title>Code coverage report for lib/htmlUtils.ts</title>
     <meta charset="utf-8" />
     <link rel="stylesheet" href="../prettify.css" />
     <link rel="stylesheet" href="../base.css" />
@@ -19,34 +19,34 @@
 <body>
 <div class='wrapper'>
     <div class='pad1'>
-        <h1><a href="../index.html">All files</a> / <a href="index.html">lib</a> approvedSources.ts</h1>
+        <h1><a href="../index.html">All files</a> / <a href="index.html">lib</a> htmlUtils.ts</h1>
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/2</span>
+                <span class='fraction'>0/16</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">100% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>0/0</span>
+                <span class='fraction'>0/6</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">100% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>0/0</span>
+                <span class='fraction'>0/3</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/1</span>
+                <span class='fraction'>0/13</span>
             </div>
         
             
@@ -103,7 +103,10 @@
 <a name='L38'></a><a href='#L38'>38</a>
 <a name='L39'></a><a href='#L39'>39</a>
 <a name='L40'></a><a href='#L40'>40</a>
-<a name='L41'></a><a href='#L41'>41</a></td><td class="line-coverage quiet"><span class="cline-any cline-no">&nbsp;</span>
+<a name='L41'></a><a href='#L41'>41</a>
+<a name='L42'></a><a href='#L42'>42</a>
+<a name='L43'></a><a href='#L43'>43</a>
+<a name='L44'></a><a href='#L44'>44</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -113,6 +116,10 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -121,6 +128,11 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -129,61 +141,58 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">export const <span class="cstat-no" title="statement not covered" >WHITELISTED_SOURCES = <span class="cstat-no" title="statement not covered" >[</span></span>
-  // parenting
-  { domain: 'parenting', url: 'https://www.nhs.uk/conditions/baby/caring-for-a-newborn/', name: 'NHS: Caring for a Newborn' },
-  { domain: 'parenting', url: 'https://childlawadvice.org.uk/information-pages/parental-responsibility/', name: 'Child Law Advice: Parental Responsibility' },
-  { domain: 'parenting', url: 'https://www.gov.uk/employee-rights-when-on-leave', name: 'GOV.UK: Employee Rights on Leave' },
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">/**
+ * Utility functions for processing HTML content, shared between snippet retrieval and seeding.
+ */
 &nbsp;
-  // tenancy
-  { domain: 'tenancy', url: 'https://england.shelter.org.uk/housing_advice/repairs/repairs_in_your_rented_home', name: 'Shelter: Repairs in Rented Homes' },
-  { domain: 'tenancy', url: 'https://www.gov.uk/renting-out-a-property', name: 'GOV.UK: Renting Out a Property' },
-  { domain: 'tenancy', url: 'https://www.citizensadvice.org.uk/housing/renting-privately/tenancy-deposits/', name: 'Citizens Advice: Tenancy Deposits' },
-  { domain: 'tenancy', url: 'https://www.gov.uk/eviction-notice', name: 'GOV.UK: Eviction Notices' },
-  { domain: 'tenancy', url: 'https://www.moneyhelper.org.uk/en/homes/buying-a-home/struggling-with-rent-payments', name: 'MoneyHelper: Struggling with Rent' },
+/**
+ * Strips HTML tags from a string.
+ * Replaces multiple whitespace characters with a single space.
+ * @param html The HTML string.
+ * @returns The string with HTML tags removed and whitespace normalized.
+ */
+export function <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >stripHtml(</span></span>html: string): string {
+<span class="cstat-no" title="statement not covered" >    <span class="missing-if-branch" title="if path not taken" >I</span>if (!html) <span class="cstat-no" title="statement not covered" >return '';</span></span>
+    // Remove tags and replace multiple whitespace chars with a single space
+<span class="cstat-no" title="statement not covered" >    return html.replace(/&lt;[^&gt;]*&gt;/g, '').replace(/\s+/g, ' ').trim();</span>
+}
 &nbsp;
-  // workplace
-  { domain: 'workplace', url: 'https://www.acas.org.uk/disciplinary-procedure-step-by-step', name: 'ACAS: Disciplinary Procedure' },
-  { domain: 'workplace', url: 'https://www.acas.org.uk/grievance-procedure-step-by-step', name: 'ACAS: Grievance Procedure' },
-  { domain: 'workplace', url: 'https://www.gov.uk/handling-employee-grievance', name: 'GOV.UK: Handling Employee Grievances' },
-  { domain: 'workplace', url: 'https://www.hse.gov.uk/stress/standards/', name: 'HSE: Management Standards for Work Stress' },
-  { domain: 'workplace', url: 'https://ico.org.uk/for-organisations/uk-gdpr-guidance-and-resources/employment/', name: 'ICO: UK GDPR Employment Guidance' },
+/**
+ * Extracts the content of the first &lt;p&gt; tag from an HTML string.
+ * Uses a case-insensitive regex.
+ * @param html The HTML string.
+ * @returns The content of the first &lt;p&gt; tag, or null if not found.
+ */
+export function <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >extractFirstParagraph(</span></span>html: string): string | null {
+<span class="cstat-no" title="statement not covered" >    <span class="missing-if-branch" title="if path not taken" >I</span>if (!html) <span class="cstat-no" title="statement not covered" >return null;</span></span>
+    // Case-insensitive match for the first &lt;p&gt; tag, capturing content within
+    const match = <span class="cstat-no" title="statement not covered" >html.match(/&lt;p.*?&gt;([\s\S]*?)&lt;\/p&gt;/i);</span>
+<span class="cstat-no" title="statement not covered" >    return match ? match[1] : null; /</span>/ Return content inside the first &lt;p&gt;...&lt;/p&gt;
+}
 &nbsp;
-  // consumer
-  { domain: 'consumer', url: 'https://www.citizensadvice.org.uk/consumer/', name: 'Citizens Advice: Consumer Rights' },
-  { domain: 'consumer', url: 'https://www.moneyhelper.org.uk/en/everyday-money/budgeting', name: 'MoneyHelper: Budgeting Advice' },
-  { domain: 'consumer', url: 'https://www.gov.uk/government/collections/unfair-contract-terms-cma-guidance', name: 'GOV.UK: Unfair Contract Terms Guidance' },
-  { domain: 'consumer', url: 'https://www.stepchange.org/how-we-help/debt-management-plan.aspx', name: 'StepChange: Debt Management Plan' },
-  { domain: 'consumer', url: 'https://www.nationaldebtline.org/fact-sheet-library/priority-debts/', name: 'National Debtline: Priority Debts' },
-&nbsp;
-  // health
-  { domain: 'health', url: 'https://www.nhs.uk/mental-health/self-help/', name: 'NHS: Mental Health Self-Help' },
-  { domain: 'health', url: 'https://www.mind.org.uk/information-support/types-of-mental-health-problems/', name: 'Mind: Types of Mental Health Problems' },
-  { domain: 'health', url: 'https://www.nhs.uk/conditions/stress-anxiety-depression/', name: 'NHS: Stress, Anxiety, Depression' },
-  { domain: 'health', url: 'https://www.cqc.org.uk/what-we-do/how-we-do-our-work/your-rights', name: 'CQC: Your Rights in Care' },
-  { domain: 'health', url: 'https://www.samaritans.org/how-we-can-help/contact-samaritan/', name: 'Samaritans: Contact Us' },
-&nbsp;
-  // equality
-  { domain: 'equality', url: 'https://www.equalityhumanrights.com/en/advice-and-guidance/your-rights-under-equality-act-2010', name: 'EHRC: Equality Act 2010 Rights' },
-  { domain: 'equality', url: 'https://www.gov.uk/rights-disabled-person', name: 'GOV.UK: Rights for Disabled People' },
-  { domain: 'equality', url: 'https://www.acas.org.uk/discrimination-and-the-law', name: 'ACAS: Discrimination and the Law' },
-  { domain: 'equality', url: 'https://www.gov.uk/reasonable-adjustments-for-disabled-workers', name: 'GOV.UK: Reasonable Adjustments for Disabled Workers' },
-  { domain: 'equality', url: 'https://www.scope.org.uk/advice-and-support/discrimination-at-work/', name: 'Scope: Discrimination at Work' }
-] as const;</pre></td></tr></table></pre>
+/**
+ * Truncates text to a specified word count, adding ellipsis if truncated.
+ * @param text The text to truncate.
+ * @param maxWords The maximum number of words allowed.
+ * @returns The truncated text, or the original text if within the limit.
+ */
+export function <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >truncateWords(</span></span>text: string, maxWords: number): string {
+<span class="cstat-no" title="statement not covered" >    <span class="missing-if-branch" title="if path not taken" >I</span>if (!text) <span class="cstat-no" title="statement not covered" >return '';</span></span>
+    const words = <span class="cstat-no" title="statement not covered" >text.trim().split(/\s+/); /</span>/ Split by whitespace
+<span class="cstat-no" title="statement not covered" >    <span class="missing-if-branch" title="if path not taken" >I</span>if (words.length &lt;= maxWords) {</span>
+<span class="cstat-no" title="statement not covered" >        return text.trim(); /</span>/ Return original trimmed text if within limit
+    }
+    // Join the first maxWords words and add ellipsis
+<span class="cstat-no" title="statement not covered" >    return words.slice(0, maxWords).join(' ') + '...';</span>
+}</pre></td></tr></table></pre>
 
                 <div class='push'></div><!-- for sticky footer -->
             </div><!-- /wrapper -->

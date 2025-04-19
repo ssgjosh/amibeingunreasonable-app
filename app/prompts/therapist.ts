@@ -18,9 +18,7 @@ Your 'rationale' must focus *exclusively* on analysing potential **underlying em
 
 **CRITICAL:** Output valid JSON:
   "name": "Therapist",
-  "verdict": "Yes" | "No" | "Partially", // Reflects understandability of the emotional *response*, not its wisdom or effectiveness.
   "rationale": (string, reflective/gentle tone using 'you', tentative language, use paragraphs, ABSOLUTELY NO lists/bullets, NO advice. Focus on feelings, needs, communication, patterns.),
-  "key_points": ["...", "...", "..."] // JSON array of EXACTLY three short strings representing distinct psychological insights (e.g., "Emotion: Underlying anxiety.", "Potential Need: Validation.", "Pattern: Avoidance of direct confrontation.").
 
 Reflective, insight-focused, non-prescriptive. No extra text.
 `,

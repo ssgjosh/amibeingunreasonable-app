@@ -22,7 +22,7 @@ This project uses [`next/font`](https://nextjs.org/docs/app/building-your-applic
 
 ## Key Features
 
-*   **Multi-Persona Analysis:** Analyzes user input from Therapist, Analyst, and Coach perspectives using Google Gemini.
+*   **Multi-Persona Analysis:** Analyzes user input from Therapist, Analyst, and Coach perspectives using OpenRouter (default model: `openai/gpt-4.1`).
 *   **RAG Integration:** For certain topics (parenting, tenancy, workplace, consumer, health, equality), the AI attempts to retrieve relevant snippets from a whitelist of UK sources (NHS, Gov.uk, ACAS, Shelter, etc.) and cite them in its response using bracketed numbers like [1]. This uses Upstash Redis for caching. Requires `STORAGE_KV_REST_API_URL` and `STORAGE_KV_REST_API_TOKEN` environment variables. **Note:** To pre-populate the cache after deployment or source changes, run the seeder script using `pnpm run seed:snippets` (this can be triggered manually via the "Manually Seed Snippets Cache" GitHub Action).
 *   **Zod Validation:** Ensures the AI output conforms to the expected JSON structure.
 *   **Golden File Testing:** Uses Jest to run tests against predefined scenarios in the `tests/golden` directory.

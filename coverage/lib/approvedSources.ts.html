@@ -103,10 +103,7 @@
 <a name='L38'></a><a href='#L38'>38</a>
 <a name='L39'></a><a href='#L39'>39</a>
 <a name='L40'></a><a href='#L40'>40</a>
-<a name='L41'></a><a href='#L41'>41</a>
-<a name='L42'></a><a href='#L42'>42</a>
-<a name='L43'></a><a href='#L43'>43</a>
-<a name='L44'></a><a href='#L44'>44</a></td><td class="line-coverage quiet"><span class="cline-any cline-no">&nbsp;</span>
+<a name='L41'></a><a href='#L41'>41</a></td><td class="line-coverage quiet"><span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -146,60 +143,54 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">export const <span class="cstat-no" title="statement not covered" >WHITELISTED_SOURCES = <span class="cstat-no" title="statement not covered" >{</span></span>
-  parenting: [
-    "https://www.nhs.uk/conditions/baby/caring-for-a-newborn/",
-    "https://www.nhs.uk/conditions/pregnancy-and-baby/behaviour-safety/",
-    "https://www.nspcc.org.uk/keeping-children-safe/support-for-parents/positive-parenting/",
-    "https://childlawadvice.org.uk/information-pages/parental-responsibility/",
-    "https://www.gov.uk/employee-rights-when-on-leave"
-  ],
-  tenancy: [
-    "https://england.shelter.org.uk/housing_advice/repairs/repairs_in_your_rented_home",
-    "https://www.gov.uk/renting-out-a-property",
-    "https://www.citizensadvice.org.uk/housing/renting-privately/tenancy-deposits/",
-    "https://www.gov.uk/eviction-notice",
-    "https://www.moneyhelper.org.uk/en/homes/buying-a-home/struggling-with-rent-payments"
-  ],
-  workplace: [
-    "https://www.acas.org.uk/disciplinary-procedure-step-by-step",
-    "https://www.acas.org.uk/grievance-procedure-step-by-step",
-    "https://www.gov.uk/handling-employee-grievance",
-    "https://www.hse.gov.uk/stress/standards/",
-    "https://ico.org.uk/for-organisations/uk-gdpr-guidance-and-resources/employment/"
-  ],
-  consumer: [
-    "https://www.citizensadvice.org.uk/consumer/",
-    "https://www.moneyhelper.org.uk/en/everyday-money/budgeting",
-    "https://www.gov.uk/government/collections/unfair-contract-terms-cma-guidance",
-    "https://www.stepchange.org/how-we-help/debt-management-plan.aspx",
-    "https://www.nationaldebtline.org/fact-sheet-library/priority-debts/"
-  ],
-  health: [
-    "https://www.nhs.uk/mental-health/self-help/",
-    "https://www.mind.org.uk/information-support/types-of-mental-health-problems/",
-    "https://www.nhs.uk/conditions/stress-anxiety-depression/",
-    "https://www.cqc.org.uk/what-we-do/how-we-do-our-work/your-rights",
-    "https://www.samaritans.org/how-we-can-help/contact-samaritan/"
-  ],
-  equality: [
-    "https://www.equalityhumanrights.com/en/advice-and-guidance/your-rights-under-equality-act-2010",
-    "https://www.gov.uk/rights-disabled-person",
-    "https://www.acas.org.uk/discrimination-and-the-law",
-    "https://www.gov.uk/reasonable-adjustments-for-disabled-workers",
-    "https://www.scope.org.uk/advice-and-support/discrimination-at-work/"
-  ]
-} as const;</pre></td></tr></table></pre>
+<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">export const <span class="cstat-no" title="statement not covered" >WHITELISTED_SOURCES = <span class="cstat-no" title="statement not covered" >[</span></span>
+  // parenting
+  { domain: 'parenting', url: 'https://www.nhs.uk/conditions/baby/caring-for-a-newborn/', name: 'NHS: Caring for a Newborn' },
+  { domain: 'parenting', url: 'https://childlawadvice.org.uk/information-pages/parental-responsibility/', name: 'Child Law Advice: Parental Responsibility' },
+  { domain: 'parenting', url: 'https://www.gov.uk/employee-rights-when-on-leave', name: 'GOV.UK: Employee Rights on Leave' },
+&nbsp;
+  // tenancy
+  { domain: 'tenancy', url: 'https://england.shelter.org.uk/housing_advice/repairs/repairs_in_your_rented_home', name: 'Shelter: Repairs in Rented Homes' },
+  { domain: 'tenancy', url: 'https://www.gov.uk/renting-out-a-property', name: 'GOV.UK: Renting Out a Property' },
+  { domain: 'tenancy', url: 'https://www.citizensadvice.org.uk/housing/renting-privately/tenancy-deposits/', name: 'Citizens Advice: Tenancy Deposits' },
+  { domain: 'tenancy', url: 'https://www.gov.uk/eviction-notice', name: 'GOV.UK: Eviction Notices' },
+  { domain: 'tenancy', url: 'https://www.moneyhelper.org.uk/en/homes/buying-a-home/struggling-with-rent-payments', name: 'MoneyHelper: Struggling with Rent' },
+&nbsp;
+  // workplace
+  { domain: 'workplace', url: 'https://www.acas.org.uk/disciplinary-procedure-step-by-step', name: 'ACAS: Disciplinary Procedure' },
+  { domain: 'workplace', url: 'https://www.acas.org.uk/grievance-procedure-step-by-step', name: 'ACAS: Grievance Procedure' },
+  { domain: 'workplace', url: 'https://www.gov.uk/handling-employee-grievance', name: 'GOV.UK: Handling Employee Grievances' },
+  { domain: 'workplace', url: 'https://www.hse.gov.uk/stress/standards/', name: 'HSE: Management Standards for Work Stress' },
+  { domain: 'workplace', url: 'https://ico.org.uk/for-organisations/uk-gdpr-guidance-and-resources/employment/', name: 'ICO: UK GDPR Employment Guidance' },
+&nbsp;
+  // consumer
+  { domain: 'consumer', url: 'https://www.citizensadvice.org.uk/consumer/', name: 'Citizens Advice: Consumer Rights' },
+  { domain: 'consumer', url: 'https://www.moneyhelper.org.uk/en/everyday-money/budgeting', name: 'MoneyHelper: Budgeting Advice' },
+  { domain: 'consumer', url: 'https://www.gov.uk/government/collections/unfair-contract-terms-cma-guidance', name: 'GOV.UK: Unfair Contract Terms Guidance' },
+  { domain: 'consumer', url: 'https://www.stepchange.org/how-we-help/debt-management-plan.aspx', name: 'StepChange: Debt Management Plan' },
+  { domain: 'consumer', url: 'https://www.nationaldebtline.org/fact-sheet-library/priority-debts/', name: 'National Debtline: Priority Debts' },
+&nbsp;
+  // health
+  { domain: 'health', url: 'https://www.nhs.uk/mental-health/self-help/', name: 'NHS: Mental Health Self-Help' },
+  { domain: 'health', url: 'https://www.mind.org.uk/information-support/types-of-mental-health-problems/', name: 'Mind: Types of Mental Health Problems' },
+  { domain: 'health', url: 'https://www.nhs.uk/conditions/stress-anxiety-depression/', name: 'NHS: Stress, Anxiety, Depression' },
+  { domain: 'health', url: 'https://www.cqc.org.uk/what-we-do/how-we-do-our-work/your-rights', name: 'CQC: Your Rights in Care' },
+  { domain: 'health', url: 'https://www.samaritans.org/how-we-can-help/contact-samaritan/', name: 'Samaritans: Contact Us' },
+&nbsp;
+  // equality
+  { domain: 'equality', url: 'https://www.equalityhumanrights.com/en/advice-and-guidance/your-rights-under-equality-act-2010', name: 'EHRC: Equality Act 2010 Rights' },
+  { domain: 'equality', url: 'https://www.gov.uk/rights-disabled-person', name: 'GOV.UK: Rights for Disabled People' },
+  { domain: 'equality', url: 'https://www.acas.org.uk/discrimination-and-the-law', name: 'ACAS: Discrimination and the Law' },
+  { domain: 'equality', url: 'https://www.gov.uk/reasonable-adjustments-for-disabled-workers', name: 'GOV.UK: Reasonable Adjustments for Disabled Workers' },
+  { domain: 'equality', url: 'https://www.scope.org.uk/advice-and-support/discrimination-at-work/', name: 'Scope: Discrimination at Work' }
+] as const;</pre></td></tr></table></pre>
 
                 <div class='push'></div><!-- for sticky footer -->
             </div><!-- /wrapper -->
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-04-18T05:31:29.999Z
+                at 2025-04-19T10:24:41.778Z
             </div>
         <script src="../prettify.js"></script>
         <script>

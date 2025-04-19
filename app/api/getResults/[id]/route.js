@@ -7,10 +7,12 @@ const redis = new Redis({
   token: process.env.STORAGE_KV_REST_API_TOKEN,
 });
 
-// Updated function signature to address Next.js warning
-export async function GET(request, context) {
-  // Destructure id from context.params inside the function
-  const { id } = context.params;
+// Updated function signature to destructure params directly
+export async function GET(request, context) { // Changed second arg name for clarity
+  // Await the context.params promise to resolve
+  const params = await context.params;
+  // Destructure id directly from the resolved params object
+  const { id } = params;
 
   // Validate environment variables
   if (!process.env.STORAGE_KV_REST_API_URL || !process.env.STORAGE_KV_REST_API_TOKEN) {

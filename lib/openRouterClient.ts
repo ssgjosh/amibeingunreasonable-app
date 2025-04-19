@@ -1,5 +1,10 @@
+import dotenv from 'dotenv';
+import path from 'path';
 import OpenAI from 'openai';
 import { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
+
+// Load environment variables from .env.local at project root FIRST
+dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const OPENROUTER_API_BASE = "https://openrouter.ai/api/v1";
@@ -14,8 +19,8 @@ if (!OPENROUTER_API_KEY) {
   throw new Error("Configuration Error: process.env.OPENROUTER_API_KEY is not defined.");
 }
 
-// Instantiate the OpenAI client configured for OpenRouter
-const openRouter = new OpenAI({
+// Instantiate and export the OpenAI client configured for OpenRouter
+export const openRouter = new OpenAI({
   apiKey: OPENROUTER_API_KEY,
   baseURL: OPENROUTER_API_BASE,
   defaultHeaders: {

@@ -187,10 +187,15 @@ const ReferenceDrawer = memo(function ReferenceDrawer({
                 {snippets.map((snippet, index) => (
                   <div 
                     key={index} 
-                    id={`snippet-${index}`} 
+                    id={`snippet-${index}`}
                     className="p-3 border border-border/40 rounded-md transition-colors duration-200"
                   >
-                    <p className="text-sm">
+                    {/* Display Snippet Title */}
+                    <h4 className="text-sm font-semibold mb-1">
+                      {snippet.title || "Source"} {/* Use snippet.title, fallback to "Source" */}
+                    </h4>
+                    {/* Display Snippet Text */}
+                    <p className="text-sm text-secondary-foreground"> {/* Added text-secondary-foreground for contrast */}
                       {snippet.text || "No text available"}
                     </p>
                     {snippet.url && (

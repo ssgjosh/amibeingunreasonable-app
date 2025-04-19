@@ -1,7 +1,7 @@
 import { Redis } from '@upstash/redis';
-import { WHITELISTED_SOURCES } from '../lib/approvedSources';
-import { stripHtml, extractFirstParagraph, truncateWords } from '../lib/htmlUtils';
-import type { Snippet } from '../lib/retrieveSnippets'; // Import type
+import { WHITELISTED_SOURCES } from '../lib/approvedSources.js';
+import { stripHtml, extractFirstParagraph, truncateWords } from '../lib/htmlUtils.js';
+import type { Snippet } from '../lib/retrieveSnippets.js'; // Import type
 
 // --- Configuration ---
 const cacheTTL = 60 * 60 * 24 * 30; // 30 days in seconds
@@ -75,30 +75,46 @@ async function seedSnippets() {
 
             const html = await response.text();
 
-            // 2. Extract content
+            // 2. Extract Title
+            let pageTitle: string = url; // Default to URL
+            try {
+                const titleMatch = html.match(/<title[^>]*>(.*?)<\/title>/i);
+                if (titleMatch && titleMatch[1]) {
+                    let rawTitle = titleMatch[1];
+                    // Simple decoding
+                    rawTitle = rawTitle.replace(/&/g, '&').replace(/</g, '<').replace(/>/g, '>').replace(/"/g, '"').replace(/'/g, "'");
+                    pageTitle = rawTitle.replace(/\s+/g, ' ').replace(/ [-|] GOV\.UK$/i, '').trim();
+                }
+                if (!pageTitle || pageTitle.length === 0) pageTitle = url;
+            } catch (titleError) {
+                console.warn(`SEEDER WARN: Error extracting title for ${url}:`, titleError);
+                pageTitle = url; // Fallback to URL on error
+            }
+
+            // 3. Extract content (first paragraph)
             const firstParagraphHtml = extractFirstParagraph(html);
             if (!firstParagraphHtml) {
                 console.warn(`SEEDER WARN: Could not find first <p> tag content in ${url}`);
-                // Optionally cache an empty marker or skip? For now, skip.
-                errorCount++; // Count as error if we expect content
+                errorCount++;
                 continue;
             }
 
-            // 3. Process and truncate text
+            // 4. Process and truncate text
             const textContent = stripHtml(firstParagraphHtml);
             const snippetText = truncateWords(textContent, maxWordsPerSnippet);
 
             if (snippetText && snippetText !== '...') {
-                const newSnippet: Snippet = { url: url, text: snippetText };
+                // Include the extracted title
+                const newSnippet: Snippet = { url: url, title: pageTitle, text: snippetText };
                 console.log(`SEEDER: Extracted snippet. Caching with TTL ${cacheTTL}s...`);
 
-                // 4. Cache the result
+                // 5. Cache the result
                 await redis.set(cacheKey, JSON.stringify(newSnippet), { ex: cacheTTL });
-                console.log(`SEEDER: Successfully cached snippet for ${url}`);
+                console.log(`SEEDER: Successfully cached snippet for ${url} (Title: ${pageTitle})`);
                 successCount++;
             } else {
                 console.warn(`SEEDER WARN: Extracted empty or minimal snippet from ${url} after processing.`);
-                errorCount++; // Count as error if we expect content
+                errorCount++;
             }
 
         } catch (error: any) {

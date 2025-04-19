@@ -1,6 +1,7 @@
 // FILE: app/api/generateFollowUpQuestions/route.js
 // Removed: import { GoogleGenerativeAI } from '@google/generative-ai';
 import { getOpenRouterCompletion } from '@/lib/openRouterClient'; // Added
+import { z } from 'zod'; // Added Zod import
 // Removed ChatCompletionMessageParam import as it's not strictly needed in JS and might cause issues if openai types aren't fully available
 
 // Removed: const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY);
@@ -28,6 +29,9 @@ function cleanApiResponseText(text) {
 
     return cleaned;
 }
+
+// --- Zod Schema for Validation ---
+const QuestionsSchema = z.array(z.string().min(1, "Question cannot be empty.")).min(1, "Must provide at least one question.");
 
 export async function POST(request) {
     let requestBody;
@@ -122,32 +126,40 @@ Generate 2-3 follow-up questions based on the instructions in the system prompt.
         console.log("FOLLOW-UP ROUTE Cleaned Response:", cleanedText);
 
         // Try to parse as JSON
-        let questions = [];
+        let parsedJson;
         try {
             // Handle cases where the model might return JSON with or without code fences
             if (cleanedText.startsWith('[') && cleanedText.endsWith(']')) {
-                questions = JSON.parse(cleanedText);
+                parsedJson = JSON.parse(cleanedText);
             } else {
                  // If cleaning didn't isolate the array, try one more time
                  const arrayMatch = cleanedText.match(/\[[\s\S]*?\]/);
                  if (arrayMatch) {
-                    questions = JSON.parse(arrayMatch[0]);
+                    parsedJson = JSON.parse(arrayMatch[0]);
                  } else {
                     throw new Error("Could not find JSON array in response.");
                  }
             }
 
-            // Validate questions
-            if (!Array.isArray(questions) || questions.length === 0) {
-                throw new Error("Invalid questions format received from model.");
+            // --- Zod Validation ---
+            const zodResult = QuestionsSchema.safeParse(parsedJson);
+            if (!zodResult.success) {
+                console.error("FOLLOW-UP ROUTE Zod validation failed:", zodResult.error.flatten());
+                throw new Error(`AI response failed schema validation: ${zodResult.error.message}`);
             }
+
+            // Use validated data
+            let questions = zodResult.data;
+
+            // --- Post-validation Processing ---
+            // (Previous manual validation checks are now covered by Zod)
 
             // Limit to 3 questions maximum and remove duplicates
             questions = [...new Set(questions)].slice(0, 3);
 
             // Ensure all questions are strings and end with question marks
             questions = questions.map(q => {
-                if (typeof q !== 'string') return "Additional information needed?"; // Fallback for non-string items
+                // typeof check is redundant due to Zod schema
                 return q.trim().endsWith('?') ? q.trim() : `${q.trim()}?`;
             });
 
@@ -155,7 +167,7 @@ Generate 2-3 follow-up questions based on the instructions in the system prompt.
             return Response.json({ questions }); // Return 200 OK implicitly
 
         } catch (parseError) {
-            console.error("FOLLOW-UP ROUTE Error parsing questions:", parseError);
+            console.error("FOLLOW-UP ROUTE Error parsing or validating questions:", parseError);
             console.error("FOLLOW-UP ROUTE Failing Cleaned Text:", cleanedText); // Log the text that failed parsing
 
             // Fallback: Try to extract questions using regex (less reliable)
@@ -167,7 +179,7 @@ Generate 2-3 follow-up questions based on the instructions in the system prompt.
                 questions = matches.map(m => m[1].trim()).slice(0, 3);
                 // Return 200 OK but include error indicating fallback
                 return Response.json({
-                    error: `Failed to parse AI response, used regex fallback: ${parseError.message}.`,
+                    error: `Failed to parse/validate AI response, used regex fallback: ${parseError.message}.`,
                     questions
                 });
             }
@@ -175,7 +187,7 @@ Generate 2-3 follow-up questions based on the instructions in the system prompt.
             // Last resort fallback (if regex also fails)
             console.error("FOLLOW-UP ROUTE: Regex extraction failed. Using default questions.");
             // Throw to trigger outer catch block's fallback
-            throw new Error("Could not parse or extract questions from AI response.");
+            throw new Error(`Could not parse, validate, or extract questions from AI response: ${parseError.message}`);
         }
     } catch (error) {
         console.error("FOLLOW-UP ROUTE Error generating follow-up questions:", error);

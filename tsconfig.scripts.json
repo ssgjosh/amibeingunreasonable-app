@@ -1,0 +1,26 @@
+{
+  "extends": "./tsconfig.json", // Inherit base settings
+  "compilerOptions": {
+    "noEmit": false, // Allow emitting JS files
+    "outDir": "./dist-scripts", // Specify output directory for compiled scripts
+    "module": "NodeNext", // Use NodeNext for modern Node.js ESM compatibility
+    "moduleResolution": "NodeNext", // Align module resolution
+    "isolatedModules": false, // Not needed for script compilation
+    "declaration": false, // Don't need declaration files for scripts
+    "skipLibCheck": true // Keep skipping lib checks
+    // Remove Next.js specific plugin if present in base config, not needed here
+    // "plugins": [] // Uncomment if base tsconfig has plugins incompatible with script compilation
+  },
+  "include": [
+    "scripts/**/*.ts" // Only include files in the scripts directory
+  ],
+  "exclude": [
+    "node_modules",
+    "app", // Exclude the main app code
+    "components",
+    "hooks",
+    // "lib", // Allow including lib as scripts depend on it
+    ".next",
+    "public"
+  ]
+}

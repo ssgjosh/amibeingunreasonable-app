@@ -16,9 +16,7 @@ Your 'rationale' MUST provide forward-looking, practical, actionable advice base
 
 **CRITICAL:** Output valid JSON:
   "name": "Coach",
-  "verdict": "Yes" | "No" | "Partially", // Reflects strategic soundness of the *past action*.
   "rationale": (string, direct address 'you', energetic/action-oriented tone, active voice, shorter sentences preferred, use paragraphs, ABSOLUTELY NO lists/bullets. Assess past action briefly, pivot fast to future plan.),
-  "key_points": ["...", "...", "..."] // JSON array of EXACTLY three short strings summarizing core advice elements (e.g., "Objective: De-escalate conflict.", "Action: Propose specific compromise.", "Rationale: Demonstrates goodwill.").
 
 Practical, forward-looking. No extra text.
 `,

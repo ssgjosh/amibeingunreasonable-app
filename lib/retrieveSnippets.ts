@@ -1,12 +1,14 @@
 import { Redis } from '@upstash/redis';
-import { WHITELISTED_SOURCES } from './approvedSources';
-import { ApprovedDomain } from './domainKeywords';
+import { WHITELISTED_SOURCES, WhitelistedSource } from './approvedSources'; // Import the approved sources and type, remove .js
+// Removed: import { ApprovedDomain } from './domainKeywords';
 // Import shared HTML processing functions
-import { stripHtml, extractFirstParagraph, truncateWords } from './htmlUtils';
+import { stripHtml, truncateWords } from './htmlUtils'; // Removed unused extractFirstParagraph, remove .js
+import { openRouter } from './openRouterClient'; // Corrected import based on previous fix, remove .js
 
 // --- Define and Export Snippet Type ---
 export type Snippet = {
     url: string;
+    title: string; // Added title field
     text: string;
 };
 
@@ -30,111 +32,154 @@ if (redisUrl && redisToken) {
 }
 
 /**
- * Retrieves relevant text snippets for a given domain, using caching.
- * Fetches content from approved URLs associated with the domain.
- * @param domain The detected domain (must be an ApprovedDomain).
+ * Retrieves text snippets for a given list of relevant URLs, using caching.
+ * Fetches content from the provided URLs.
+ * @param relevantUrls An array of URLs deemed relevant by the primary semantic search.
+ * @param userQuery The original user query (used for context in logging).
  * @returns A promise that resolves to an array of Snippet objects.
  */
-export async function retrieveSnippets(domain: ApprovedDomain): Promise<Snippet[]> {
+export async function retrieveSnippets(relevantUrls: string[], userQuery: string): Promise<Snippet[]> {
     if (!redis) {
         console.error("retrieveSnippets: Redis client not available.");
         return [];
     }
+    // Check the exported client instance directly
+    if (!openRouter) {
+        console.error("retrieveSnippets: OpenRouter client instance not available.");
+        return [];
+    }
 
-    // Filter the sources for the given domain
-    const relevantSources = WHITELISTED_SOURCES.filter(source => source.domain === domain);
+    // Input validation
+    if (!Array.isArray(relevantUrls) || relevantUrls.length === 0) {
+        console.log("[RAG] retrieveSnippets called with no relevant URLs. Returning empty array.");
+        return [];
+    }
+
     const retrievedSnippets: Snippet[] = [];
     const cacheTTL = 60 * 60 * 24 * 30; // 30 days in seconds
-    const maxWordsPerSnippet = 80;
+    const failureCacheTTL = 60 * 5; // 5 minutes in seconds
+    const failureCachePrefix = 'snippet_fail:';
+    const maxWordsPerSnippet = 80; // Note: This constant seems unused currently
 
-    console.log(`[RAG] Starting snippet retrieval for domain: ${domain}. Found ${relevantSources.length} potential URLs.`);
+    console.log(`[RAG] Starting snippet retrieval for ${relevantUrls.length} relevant URLs.`);
 
-    for (const source of relevantSources) {
-        const url = source.url;
+    for (const url of relevantUrls) { // Iterate directly over the provided URLs
         const cacheKey = `snippet:${url}`;
-        let snippetFromCache: Snippet | null = null; // Renamed variable for clarity
 
+        // Outer try-catch for processing a single URL
         try {
-            // 1. Check cache - Use generic 'unknown' type first
+            // --- 1. Get Pre-defined Title ---
+            const sourceInfo = WHITELISTED_SOURCES.find((source: WhitelistedSource) => source.url === url); // Add type annotation
+            let pageTitle: string;
+            if (sourceInfo && sourceInfo.name) {
+                pageTitle = sourceInfo.name;
+            } else {
+                console.warn(`[RAG] URL ${url} not found in WHITELISTED_SOURCES or missing 'name'. Using URL as fallback title.`);
+                pageTitle = url; // Fallback to URL if not found or name is missing
+            }
+
+            // --- 2. Check cache (using pre-defined title) ---
             const cachedData: unknown = await redis.get(cacheKey);
+            let useCache = false; // Flag to determine if cache should be used
 
             if (cachedData !== null && cachedData !== undefined) {
                 let potentialSnippet: any = null;
-
-                // Check if it's a string that needs parsing, or potentially already an object
                 if (typeof cachedData === 'string') {
-                    try {
-                        potentialSnippet = JSON.parse(cachedData);
-                    } catch (parseError) {
-                        console.warn(`[RAG] Failed to parse cached string data for ${url}. Will refetch. Error:`, parseError);
-                        // Keep potentialSnippet as null
-                    }
+                    try { potentialSnippet = JSON.parse(cachedData); } catch { /* ignore parse error */ }
                 } else if (typeof cachedData === 'object') {
-                    // It might already be an object (though get<string> was used before, let's be safe)
                     potentialSnippet = cachedData;
-                } else {
-                     console.warn(`[RAG] Unexpected data type found in cache for ${url}: ${typeof cachedData}. Will refetch.`);
                 }
 
-                // Validate the structure of the potential snippet (whether parsed or direct object)
-                if (potentialSnippet && typeof potentialSnippet.url === 'string' && typeof potentialSnippet.text === 'string') {
-                    console.log(`[RAG] Cache HIT for ${url}`);
-                    snippetFromCache = potentialSnippet as Snippet; // Type assertion after validation
-                    retrievedSnippets.push(snippetFromCache);
-                    continue; // Move to the next source URL
+                // Validate cache structure AND title match
+                if (potentialSnippet &&
+                    typeof potentialSnippet.url === 'string' &&
+                    typeof potentialSnippet.title === 'string' &&
+                    typeof potentialSnippet.text === 'string' &&
+                    potentialSnippet.title === pageTitle) { // Check if cached title matches the correct pre-defined title
+                    console.log(`[RAG] Cache HIT for ${url} with matching title.`);
+                    retrievedSnippets.push(potentialSnippet as Snippet);
+                    useCache = true; // Valid cache entry found
                 } else if (potentialSnippet) {
-                    // Parsed/Object existed but didn't have the right structure
-                    console.warn(`[RAG] Invalid object structure found in cache for ${url}. Will refetch.`);
+                    // Log why cache is invalid (structure or title mismatch)
+                    if (potentialSnippet.title !== pageTitle) {
+                         console.warn(`[RAG] Cache INVALID for ${url}: Title mismatch (Expected: "${pageTitle}", Found: "${potentialSnippet.title}"). Will refetch.`);
+                    } else {
+                         console.warn(`[RAG] Cache INVALID for ${url}: Invalid object structure. Will refetch.`);
+                    }
+                } else {
+                     console.log(`[RAG] Cache MISS for ${url} (Could not parse cached data).`);
                 }
-                // If parsing failed or structure was invalid, snippetFromCache remains null, and we proceed to fetch
+            } else {
+                 console.log(`[RAG] Cache MISS for ${url} (No data found).`);
             }
 
-            // If cache miss or invalid cache data, proceed to fetch
-            // (snippetFromCache will be null here)
-            console.log(`[RAG] Cache MISS for ${url}. Fetching...`);
-
-            // 2. Fetch external URL
-            const response = await fetch(url, {
-                headers: { 'User-Agent': 'AmIBeingUnreasonable-Bot/1.0' },
-                signal: AbortSignal.timeout(10000) // 10-second timeout
-            });
-
-            if (!response.ok) {
-                console.error(`[RAG] Failed to fetch ${url}. Status: ${response.status} ${response.statusText}`);
+            // If valid cache was found and used, skip to the next URL
+            if (useCache) {
                 continue;
             }
 
-            const html = await response.text();
+            // --- 3. Fetch Pre-generated Summary from Redis Hash ---
+            console.log(`[RAG] Cache MISS/INVALID for ${url}. Fetching pre-generated summary from Redis hash...`);
+            let snippetText: string;
+            const summaryKey = 'source_summaries'; // Key for the hash storing summaries
+            const failureKey = failureCachePrefix + url;
 
-            // 3. Extract content using imported functions
-            const firstParagraphHtml = extractFirstParagraph(html);
-            if (!firstParagraphHtml) {
-                console.warn(`[RAG] Could not find first <p> tag content in ${url}`);
-                continue;
+            // --- Check Failure Cache ---
+            try {
+                const failed = await redis.exists(failureKey);
+                if (failed) {
+                    console.warn(`[RAG] Skipping summary fetch for ${url} due to recent failure.`);
+                    continue; // Skip to the next URL
+                }
+            } catch (existsError) {
+                 console.error(`[RAG] Error checking failure cache key ${failureKey}:`, existsError);
+                 // Continue anyway, attempt the fetch
             }
 
-            const textContent = stripHtml(firstParagraphHtml);
-            const snippetText = truncateWords(textContent, maxWordsPerSnippet);
+            try {
+                const summary = await redis.hget<string>(summaryKey, url); // Fetch summary for the specific URL (field)
+                if (summary) {
+                    console.log(`[RAG] Found pre-generated summary for ${url} in hash '${summaryKey}'.`);
+                    snippetText = summary;
+                } else {
+                    console.warn(`[RAG] Pre-generated summary not found for ${url} in hash '${summaryKey}'. Using placeholder.`);
+                    snippetText = "Summary not available.";
+                }
+            } catch (hgetError) {
+                console.error(`[RAG] Error fetching summary for ${url} from Redis hash '${summaryKey}':`, hgetError);
+                snippetText = "Error retrieving summary."; // Use error placeholder
+                // --- Set Failure Cache Key ---
+                try {
+                    await redis.set(failureKey, 'failed', { ex: failureCacheTTL });
+                    console.log(`[RAG] Set failure cache key ${failureKey} for ${failureCacheTTL} seconds.`);
+                } catch (failCacheError) {
+                    console.error(`[RAG] Error setting failure cache key ${failureKey}:`, failCacheError);
+                }
+            }
 
-            if (snippetText && snippetText !== '...') {
-                const newSnippet: Snippet = { url: url, text: snippetText };
-                console.log(`[RAG] Extracted snippet from ${url}. Caching...`);
-
-                // 4. Cache the result (as a JSON string)
+            // --- 4. Create and Cache Snippet Object ---
+            const newSnippet: Snippet = { url: url, title: pageTitle, text: snippetText };
+            console.log(`[RAG] Caching final snippet object for ${url} (Title: ${pageTitle}).`);
+            try {
                 await redis.set(cacheKey, JSON.stringify(newSnippet), { ex: cacheTTL });
                 retrievedSnippets.push(newSnippet);
-            } else {
-                console.warn(`[RAG] Extracted empty or minimal snippet from ${url} after processing.`);
+            } catch (cacheError) {
+                 console.error(`[RAG] Error caching final snippet object for ${url}:`, cacheError);
+                 // Still push the snippet even if caching fails, so the user sees it
+                 retrievedSnippets.push(newSnippet);
             }
 
         } catch (error: any) {
-            console.error(`[RAG] Error processing URL ${url}:`, error.message || error);
-             if (error.name === 'TimeoutError') {
+            // Catch errors from the outer try block (e.g., fetch failure before relevance check)
+            console.error(`[RAG] Outer error processing URL ${url}:`, error.message || error);
+             if (error.name === 'TimeoutError' || error.message?.includes('timed out')) { // Broader timeout check
                  console.error(`[RAG] Fetch timed out for ${url}`);
              }
+             // Continue to the next source even if one fails entirely
+             continue;
         }
-    }
+    } // End for loop
 
-    console.log(`[RAG] Finished snippet retrieval for domain=${domain}. URLs checked=${relevantSources.length}, Snippets returned=${retrievedSnippets.length}`);
+    console.log(`[RAG] Finished snippet retrieval. URLs processed=${relevantUrls.length}, Snippets returned=${retrievedSnippets.length}`);
     return retrievedSnippets;
 }

@@ -17,7 +17,6 @@ Your 'rationale' MUST be a clinical, detached dissection based *exclusively* on 
 **CRITICAL:** Output valid JSON:
   "name": "Analyst",
   "rationale": (string, direct address 'you', clinical/detached tone, formal language, use paragraphs, ABSOLUTELY NO lists/bullets. Start directly with assessment.),
-  "key_points": ["...", "...", "..."] // JSON array of EXACTLY three short strings summarizing distinct analytical findings (e.g., "Bias identified: Hasty generalisation.", "Evidence gap: Subjective interpretation presented as fact.", "Proportionality: Reaction magnitude exceeds trigger severity.").
 
 Clinical, factual. No extra text.
 `,

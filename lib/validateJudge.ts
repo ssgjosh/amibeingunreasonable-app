@@ -3,18 +3,11 @@ import { z } from "zod";
 // Define the schema for a single persona's result
 const PersonaSchema = z.object({
   name: z.enum(["Therapist", "Analyst", "Coach"]),
-  verdict: z.enum(["Yes", "No", "Partially"]).optional(), // Make verdict optional (Analyst won't have it)
+  // verdict removed from schema
   rationale: z.string()
     .min(1, "Rationale cannot be empty.")
     .max(120 * 8, "Rationale exceeds maximum length (approx. 120 words)."), // Approx 120 words
-  key_points: z.tuple(
-    [
-      z.string().min(1, "Key point 1 cannot be empty."),
-      z.string().min(1, "Key point 2 cannot be empty."),
-      z.string().min(1, "Key point 3 cannot be empty.")
-    ],
-    { invalid_type_error: "Key points must be an array of exactly three strings." }
-  )
+  // key_points removed from schema
 });
 
 // Define the main schema for the entire JudgeResult object

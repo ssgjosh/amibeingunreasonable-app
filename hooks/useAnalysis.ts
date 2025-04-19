@@ -97,11 +97,11 @@ export const useAnalysis = ({ getFollowUpAnswers, followUpQuestions }: UseAnalys
         let apiError: string | null = null; // Explicitly type
 
         try {
-            // 1. Call the updated /api/getResponses endpoint
-            console.log("Sending request to /api/getResponses with query:", finalQuery);
+            // 1. Call the /api/judge endpoint
+            console.log("Sending request to /api/judge with query:", finalQuery); // UPDATED Log
             console.log("Including follow-up responses:", followUpResponses);
 
-            const analysisRes = await fetch('/api/getResponses', { // *** CHANGED Endpoint ***
+            const analysisRes = await fetch('/api/judge', { // *** NEW Endpoint ***
                  method: 'POST',
                  headers: { 'Content-Type': 'application/json' },
                  body: JSON.stringify({
@@ -112,17 +112,17 @@ export const useAnalysis = ({ getFollowUpAnswers, followUpQuestions }: UseAnalys
             });
 
             if (longLoadTimeoutRef.current) clearTimeout(longLoadTimeoutRef.current); // Clear timeout once response is received
-            console.log(`/api/getResponses response status: ${analysisRes.status}`);
+            console.log(`/api/judge response status: ${analysisRes.status}`); // UPDATED Log
 
             // Handle error response (expecting JSON with 'error' field)
             if (!analysisRes.ok) {
                  let errorJson: { error?: string; details?: any } = {};
                  try {
                      errorJson = await analysisRes.json();
-                     console.error(`API Error (getResponses) ${analysisRes.status}:`, errorJson);
+                     console.error(`API Error (judge) ${analysisRes.status}:`, errorJson); // UPDATED Log Context
                  } catch (parseError) {
                      // If parsing the error response fails, use status text
-                     console.error(`API Error (getResponses) ${analysisRes.status}: Failed to parse error JSON.`, await analysisRes.text().catch(() => ''));
+                     console.error(`API Error (judge) ${analysisRes.status}: Failed to parse error JSON.`, await analysisRes.text().catch(() => '')); // UPDATED Log Context
                  }
                  // Construct a user-friendly error message
                  const message = errorJson.error || `Analysis failed: ${analysisRes.status} ${analysisRes.statusText || ''}`;
@@ -131,10 +131,10 @@ export const useAnalysis = ({ getFollowUpAnswers, followUpQuestions }: UseAnalys
                  throw new Error(message + detailsString);
             }
 
-            // 2. Extract resultId from the successful response
+            // 2. Extract resultId from the successful response (which should only contain resultId)
             const responseData = await analysisRes.json();
-            const resultId = responseData.resultId; // *** CHANGED: Expect resultId ***
-            console.log("Analysis data received from /api/getResponses:", responseData);
+            const resultId = responseData.resultId; // Expect resultId directly
+            console.log("Analysis data received from /api/judge:", responseData); // UPDATED Log
 
             if (!resultId) {
                  throw new Error("API did not return a result ID.");

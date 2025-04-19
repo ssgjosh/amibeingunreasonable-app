@@ -2,7 +2,7 @@
 
 ## Overview
 
-This plan outlines the steps to implement a Retrieval-Augmented Generation (RAG) layer for the application. The RAG layer will fetch relevant 80-word snippets from a fixed whitelist of UK statutory/charity URLs based on domain detection (keyword matching), cache these snippets in Upstash Redis, and inject them into the Gemini prompt. The AI will be instructed to cite these sources using `[n]` notation, which the backend will validate and the frontend will render as clickable links.
+This plan outlines the steps to implement a Retrieval-Augmented Generation (RAG) layer for the application. The RAG layer will fetch relevant 80-word snippets from a fixed whitelist of UK statutory/charity URLs based on domain detection (keyword matching), cache these snippets in Upstash Redis, and inject them into the OpenRouter prompt (using the `openai/gpt-4.1` model by default). The AI will be instructed to cite these sources using `[n]` notation, which the backend will validate and the frontend will render as clickable links.
 
 ## Phases
 
@@ -50,7 +50,7 @@ This plan outlines the steps to implement a Retrieval-Augmented Generation (RAG)
 
 7.  **Citation Validation (`lib/validateJudge.ts` & `app/api/judge/route.ts`):**
     *   Modify validation in `lib/validateJudge.ts` to receive `snippets`.
-    *   Extract all `[n]` from Gemini response.
+    *   Extract all `[n]` from the LLM response.
     *   Check `1 <= n <= snippets.length`. If invalid, throw `Error('Invalid citation number')`.
     *   Ensure `callGenerativeAIWithRetry` catches this error and retries once, passing `snippets` to the validation step.
 
@@ -95,7 +95,7 @@ sequenceDiagram
     participant Retriever as Snippet Retriever (retrieveSnippets.ts)
     participant Redis as Upstash Redis
     participant Parser as HTML Parser (Regex/Fetch in Retriever)
-    participant Gemini as Gemini API (callGenerativeAIWithRetry in API)
+    participant LLM as OpenRouter API (getOpenRouterCompletion in API)
     participant Validator as Citation Validator (validateJudge.ts)
 
     User->>FE: Submits query
@@ -117,14 +117,14 @@ sequenceDiagram
         API->>API: Prepend references & instructions to prompt
     end
 
-    API->>Gemini: Call Gemini with final prompt & snippets
-    Gemini-->>API: Gemini Response (potentially with [n])
+    API->>LLM: Call OpenRouter with final prompt & snippets
+    LLM-->>API: LLM Response (potentially with [n])
 
     API->>Validator: Validate response (Zod + citations) using snippets
     alt Validation Fails (Citation Error)
         Validator-->>API: Error: Invalid Citation
-        API->>Gemini: Retry Gemini Call (1 time)
-        Gemini-->>API: Gemini Response
+        API->>LLM: Retry OpenRouter Call (1 time)
+        LLM-->>API: LLM Response
         API->>Validator: Re-validate response
         alt Validation Fails Again
              Validator-->>API: Error
@@ -145,8 +145,7 @@ sequenceDiagram
 
 *   `STORAGE_KV_REST_API_URL`: URL for the Upstash Redis instance.
 *   `STORAGE_KV_REST_API_TOKEN`: Token for the Upstash Redis instance.
-*   `GEMINI_API_KEY`: Primary Gemini API Key.
-*   `GEMINI_BACKUP_KEY`: Backup Gemini API Key.
+*   `OPENROUTER_API_KEY`: API Key for OpenRouter.
 
 ## Notes
 

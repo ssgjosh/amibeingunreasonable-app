@@ -1,4 +1,4 @@
-const nextJest = require('next/jest')
+import nextJest from 'next/jest.js' // Changed require to import AND added .js extension
 
 // Providing the path to your Next.js app to load next.config.js and .env files in your test environment
 const createJestConfig = nextJest({
@@ -16,6 +16,11 @@ const customJestConfig = {
 
   // If using TypeScript with a baseUrl set to the root directory then you need the below for alias' to work
   moduleDirectories: ['node_modules', '<rootDir>/'],
+
+  // Add module name mapper for path aliases like @/
+  moduleNameMapper: {
+    '^@/(.*)$': '<rootDir>/$1',
+  },
 
   // Example: Ignore node_modules except for specific ones if needed
   // transformIgnorePatterns: [
@@ -52,4 +57,4 @@ const customJestConfig = {
 }
 
 // createJestConfig is exported this way to ensure that next/jest can load the Next.js config which is async
-module.exports = createJestConfig(customJestConfig)
+export default createJestConfig(customJestConfig) // Changed module.exports to export default
